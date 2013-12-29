@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 
-use 5.008009;
 use strict;
 use warnings;
+use 5.008009;
 
 use FindBin qw/ $Bin /;
 use lib "$Bin/../lib";
@@ -10,6 +10,7 @@ use lib "$Bin/../lib";
 use Carp;
 use Data::Dumper;
 use IPC::Shareable;
+use Date::Parse qw/ str2time /;
 use POSIX   qw/ setsid /;
 
 use SmsTasks;
@@ -18,10 +19,13 @@ use constant {
     DEFAULT_WAIT_TIME   => 7,
     NUMBERS_PER_ITER    => 2,   # количество номеров из задачи на итерацию
     MAX_FORK_COUNT      => 2,   # кол-во форков
+    DEFAULT_TIME_START  => '11:00',
+    DEFAULT_TIME_END    => '20:00',
 };
 
 # проверяем, не запущен ли скрипт ранее
 do_exit() if ( me_running() );
+do_wait() unless ( check_run_time() );
 
 # объявляем переменные
 # глобальный список задач -- делаем видимым из разных процессов
@@ -44,7 +48,10 @@ sub work {
     # TODO: приделать обработку сигналов %SIG из операционной системы
     # в т.ч. $SIG{CHLD}
 
-    while ( 1 ) { 
+    while ( 1 ) {
+
+        do_wait() unless ( check_run_time() );
+
         if ( scalar keys %TASKS == 0 ) {
             sleep( $wait_time );
             next;
@@ -63,6 +70,9 @@ sub db_process {
     # TODO: приделать обработку сигналов %SIG
 
     while( 1 ) {
+
+        do_wait() unless ( check_run_time() );
+
         $st->log( "try get tasks" );
         check_db();
         my $tasks = $st->db->get_tasks;
@@ -111,7 +121,12 @@ sub ua_process {
     
     # TODO: приделать обработку сигналов %SIG
 
-    #...
+    while ( 1 ) {
+
+        do_wait() unless ( check_run_time() );
+
+        # ...
+    }
 }
 
 setsid();
@@ -214,6 +229,40 @@ sub _check_unknown_ids {
     }
 
     return 1;
+}
+
+# проверяем, попадаем ли в разрешённые временные рамки
+sub check_run_time {
+    my $time_start = $SmsTasks::get_config->{general}->{time_start};
+    my $time_end   = $SmsTasks::get_config->{general}->{time_end};
+
+    $time_start ||= DEFAULT_TIME_START;
+    $time_end   ||= DEFAULT_TIME_END;
+
+    my $year = (localtime(time))[5];
+    my $mon = (localtime(time))[4];
+    my $mday = (localtime(time))[3];
+
+    $mon += 1;
+    $year += 1900;
+
+    my $date_start = $year . ':' . $mon . ':' . $mday . ' ' . $time_start;
+    my $date_end = $year . ':' . $mon . ':' . $mday . ' ' . $time_end;
+
+    return 1 if ( time > str2time( $date_start ) && 
+                    time < str2time( $date_end ) );
+
+    return;
+}
+
+sub do_wait {
+    my $wait_time = DEFAULT_WAIT_TIME + 60;
+
+    while ( 1 ) {
+        sleep( $wait_time );
+        next unless ( check_run_time() );
+        return 1;
+    }    
 }
 
 sub me_running {

@@ -6,9 +6,9 @@ SmsTasks
 
 =cut
 
-use 5.008009;
 use strict;
 use warnings;
+use 5.008009;
 
 use Carp;
 use Config::Tiny;
@@ -25,8 +25,6 @@ use constant {
     DEFAULT_REPEAT_COUNT    => 1,
     DEFAULT_LOGFILE         => '/var/log/smstasks/smstasks.log',
 };
-
-# TODO: конфиг-файл нужно поместить в /etc/smstasks
 
 # обязательные параметры из yml-файла
 use constant REQUIRED_SETTINGS => qw/ general database useragent /;
