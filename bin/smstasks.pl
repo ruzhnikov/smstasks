@@ -275,3 +275,15 @@ sub do_exit {
     warn "Program alredy running!";
     exit;
 }
+
+__END__
+
+=head1 DESCRIPTION
+
+Скрипт отправки СМС. Использует модули SmsTasks::*
+
+=head1 AUTHOR
+
+Alexander Ruzhnikov, C<< ruzhnikov85@gmail.com >>
+
+=cut

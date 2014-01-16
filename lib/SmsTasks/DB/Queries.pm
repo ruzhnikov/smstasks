@@ -6,9 +6,9 @@ SmsTasks::DB::Queries
 
 =cut
 
-use 5.008009;
 use strict;
 use warnings;
+use 5.008009;
 
 use POSIX   qw/ strftime /;
 
