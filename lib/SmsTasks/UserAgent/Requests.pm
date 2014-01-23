@@ -12,31 +12,26 @@ sub send_sms {
     return unless ( %data && $data{number} && $data{message} );
 
     return $self->abstracrt_request(
-        action  => 'post_sms',
+        action  => 'sms_send',
         number  => $data{number},
         message => $data{message},
         period  => $self->{period} || DEFAULT_TTL,
+        sender  => $self->{sender},
+        sms_id  => $data{sms_id},
     );
 }
 
 sub get_status {
     my ( $self, %data ) = @_;
 
-    return unless ( %data && $data{sms_id} );
+    return if ( scalar keys %data == 0 );
+    return unless ( $data{push_id} && $data{number} );
 
     return $self->abstracrt_request(
-        action  => 'status',
-        sms_id  => $data{sms_id},
-        date_from => $data{date_from},
-        date_to   => $data{date_to},
+        action  => 'sms_status2',
+        push_id => $data{push_id},
+        number  => $data{number},
     );
-}
-
-sub get_balance {
-    my ( $self ) = @_;
-
-    my $res = $self->abstracrt_request( action => 'balance' );
-    return $res->response_field('balance');
 }
 
 1;

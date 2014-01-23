@@ -9,9 +9,10 @@ use lib "$Bin/../lib";
 
 use Carp;
 use Data::Dumper;
-use IPC::Shareable;
 use Date::Parse qw/ str2time /;
 use POSIX   qw/ setsid /;
+
+use IPC::Shareable;
 
 use SmsTasks;
 

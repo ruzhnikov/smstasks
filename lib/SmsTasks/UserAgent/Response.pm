@@ -1,8 +1,8 @@
 package SmsTasks::UserAgent::Response;
 
-use 5.008009;
 use strict;
 use warnings;
+use 5.008009;
 
 use utf8;
 use XML::Fast;
@@ -22,7 +22,7 @@ sub new {
             success  => $success,
             xml      => $xml,
             error    => $error,
-            response => $parsed_response->{output},
+            response => $parsed_response->{xml_result},
             status   => $status,
         },
         $class
