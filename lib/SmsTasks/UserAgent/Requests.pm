@@ -17,7 +17,6 @@ sub send_sms {
         message => $data{message},
         period  => $self->{period} || DEFAULT_TTL,
         sender  => $self->{sender},
-        sms_id  => $data{sms_id},
     );
 }
 

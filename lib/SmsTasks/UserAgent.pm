@@ -6,6 +6,7 @@ use 5.008009;
 
 use LWP::UserAgent;
 use Carp    qw/ confess /;
+use Digest::MD5 qw/ md5_hex /;
 
 use SmsTasks::UserAgent::Response;
 
@@ -71,7 +72,8 @@ sub _generate_send_xml {
     $xml .= "\t" . qq/<xml_user lgn="/ . $self->{username} . qq/" /;
     $xml .= qq/pwd="/ . $self->{password} . qq/"\/>/ . "\n";
 
-    $xml .= "\t" . qq/<sms sms_id="/ . $data{sms_id} . qq/" number="/;
+    my $sms_id = md5_hex( rand() . time() );
+    $xml .= "\t" . qq/<sms sms_id="/ . $sms_id . qq/" number="/;
     $xml .= $data{number} . qq/" source_number="/ . $data{sender} . qq/"/;
     $xml .= qq/ ttl="/ . $data{period} . qq/">/ . $data{message};
     $xml .= qq/<\/sms>/ . "\n" . qq/<\/xml_request>/;
