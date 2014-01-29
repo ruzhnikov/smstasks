@@ -78,4 +78,23 @@ sub response_field {
     return $self->{response}->{$field};
 }
 
+sub date_delivery_sms {
+    my ( $self ) = @_;
+
+    return unless ( $self->{response}->{sms} );
+
+    my $delivery_date = $self->{response}->{sms}->{'-delivery_date'};
+    my $delivery_time = $self->{response}->{sms}->{'-delivery_time'};
+
+    return unless ( $delivery_date && $delivery_time );
+
+    my @delivery_date_array = split( /\./, $delivery_date );
+
+    return if ( scalar @delivery_date_array != 3 );
+
+    $delivery_date = join( '-', reverse @delivery_date_array );
+
+    return $delivery_date . ' ' . $delivery_time;
+}
+
 1;

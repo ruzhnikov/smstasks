@@ -47,9 +47,6 @@ sub get_tasks_query {
     }
 
     if ( $param{fields} ) {
-        # for my $field ( @{ $param{fields} } ) {
-        #     $fields = ',' . $field;
-        # }
         $fields = join( ', ', @{ $param{fields} } );
     }
 
@@ -118,6 +115,16 @@ sub get_fail_tasks {
         status => [ qw/ fail / ],
         fields => [ qw/ id status / ],
     );
+}
+
+sub get_task_date_start {
+    my ( $self, $task_id ) = @_;
+
+    return unless ( $task_id );
+
+    my $query = qq/SELECT date_start FROM sms_tasks WHERE id = ?/;
+
+    return $self->dbh->selectrow_array( $query, { Slice => {} }, $task_id );
 }
 
 =item B<set_task_query>( $self, $task_id, %param )
@@ -275,6 +282,8 @@ sub get_numbers_query {
     my @wherecond = ();
     my $wherecond;
 
+    my $limit = $param->{limit} ? $param->{limit} : DEFAULT_LIMIT;
+
     if ( $param->{status} ) {
         for my $status ( @{ $param->{status} } ) {
             push @wherecond, 'status = ?';
@@ -296,19 +305,22 @@ sub get_numbers_query {
         LEFT JOIN sms_task_messages mes
         ON (num.message_id = mes.id)
         WHERE num.task_id = ? / . ( $wherecond ? "$wherecond " : ' ' ) .
-        qq/ ORDER BY num.status ASC LIMIT 0,/ . DEFAULT_LIMIT;
+        qq/ ORDER BY num.status ASC LIMIT 0,/ . $limit;
 
     return $self->dbh->selectall_arrayref( $query, { Slice => {} }, @bind_params );
 }
 
 sub get_numbers {
-    my ( $self, $task_id ) = @_;
+    my ( $self, $task_id, $limit ) = @_;
 
     return unless ( $task_id );
+
+    $limit ||= DEFAULT_LIMIT;
     return $self->get_numbers_query( $task_id,
         {
             status  => [ qw/ new fail / ],
             check_repeat => 1,
+            limit   => $limit,
         }
     );
 }
@@ -331,10 +343,17 @@ sub set_number_query {
 }
 
 sub set_number_run {
-    my ( $self, $number_id ) = @_;
+    my ( $self, $number_id, $push_id ) = @_;
+
+    $push_id ||= 0;
 
     return unless ( $number_id );
-    return $self->set_number_query( $number_id, { status => 'running' } );
+    return $self->set_number_query( $number_id,
+        {
+            status  => 'running',
+            push_id => $push_id,
+        }
+    );
 }
 
 sub set_number_suc {
@@ -360,6 +379,39 @@ sub get_now {
     my ( $self ) = @_;
 
     return strftime "%Y:%m:%d %H:%M:%S", localtime(time);
+}
+
+sub set_stat {
+    my ( $self, $name, $param ) = @_;
+
+    return unless ( $name );
+    return if ( scalar keys %{ $param } == 0 );
+
+    my ( $keys, @values, $bind_values, $table );
+
+    if ( $name eq 'tasks' ) {
+        $table = 'sms_tasks_stat';
+    }
+    elsif ( $name eq 'numbers' ) {
+        $table = 'sms_numbers_stat';
+    }
+
+    return unless ( $table );
+
+    for my $key ( keys %{ $param } ) {
+        $keys .= $key . ',';
+        push @values, $param->{$key};
+        $bind_values .= '?,';
+    }
+
+    # отрезаем последние запятые
+    chop( $bind_values );
+    chop( $keys );
+
+    my $query = qq/INSERT INTO / . $table . qq/ (/ . $keys . qq/)/ .
+                qq/ VALUES (/ . $bind_values . qq/)/;
+
+    return $self->dbh->do( $query, undef, @values );
 }
 
 1;
