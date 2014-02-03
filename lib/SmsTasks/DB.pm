@@ -49,7 +49,7 @@ sub connect {
 sub ping {
     my ( $self ) = @_;
 
-    return $self->dbh->ping();
+    return $self->dbh->ping;
 }
 
 sub log {
@@ -86,6 +86,12 @@ sub dbh {
     }
 
     return $self->{dbh};
+}
+
+sub check_avail {
+    my ( $self ) = @_;
+
+    return $self->{dbh} && $self->ping;
 }
 
 1;

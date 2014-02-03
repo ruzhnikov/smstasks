@@ -397,7 +397,7 @@ sub set_task_suc {
 sub check_db {
 
     while( 1 ) {
-        last if ( $st->db->{dbh} && $st->db->ping );
+        last if ( $st->db->check_avail );
         $st->log("Cannot get DB connect, wait to connect...");
         $st->db->connect();
         sleep( $wait_time );

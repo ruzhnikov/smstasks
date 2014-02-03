@@ -12,7 +12,7 @@ use SmsTasks::UserAgent::Response;
 
 use base qw/ SmsTasks::UserAgent::Requests /;
 
-our $VERSION = '0.01';
+our $VERSION = $SmsTasks::UserAgent::Requests::VERSION;
 
 sub new {
     my ( $class, $param ) = @_;

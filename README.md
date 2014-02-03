@@ -1,7 +1,7 @@
 smstasks
 ========
 
-Приложение для отправки смс
+Application to send SMS through the operator <http://mirsms.ru/>
 
 COPYRIGHT AND LICENCE
 
