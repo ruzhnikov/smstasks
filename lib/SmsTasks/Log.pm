@@ -6,9 +6,9 @@ SmsTasks::Log
 
 =cut
 
-use 5.008009;
 use strict;
 use warnings;
+use 5.008009;
 
 use Log::Log4perl   qw/ :easy /;
 

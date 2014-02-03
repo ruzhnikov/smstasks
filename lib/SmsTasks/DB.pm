@@ -26,10 +26,15 @@ sub connect {
     my $user = $self->{user};
     my $password = $self->{password};
 
+    my $attr = {
+        RaiseError => 1,
+        mysql_enable_utf8 => 1
+    };
+
     $self->log( "connecting to database " . $self->{name} . "..." );
     $self->{dbh} = undef;
     eval {
-        $self->{dbh} = DBI->connect( $string, $user, $password, {'RaiseError' => 1} );
+        $self->{dbh} = DBI->connect( $string, $user, $password, $attr );
     };
     if ( $@ ) {
         $self->log( $@ );
@@ -77,7 +82,7 @@ sub dbh {
     my ( $self ) = @_;
 
     unless ( $self->{dbh} ) {
-        $self->{dbh} = $self->connect( $self->config->{database} );
+        $self->connect( $self->config->{database} );
     }
 
     return $self->{dbh};

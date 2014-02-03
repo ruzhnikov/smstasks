@@ -1,0 +1,90 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          smstasks
+# Required-Start:    $all
+# Required-Stop:     $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start smstasks daemon at boot time
+### END INIT INFO
+
+DAEMON_PATH="/opt/smstasks/bin/smstasks.pl"
+DAEMON_NAME="smstasks"
+
+function daemon_start() {
+    $(/usr/bin/perl $DAEMON_PATH) &
+}
+
+function daemon_stop() {
+    while [ 1 ]; do
+        PIDs=`ps -ef | grep $DAEMON_NAME.pl | grep -v grep | awk '{ print $2}'`
+
+        if [ "$PIDs" != "" ]; then
+
+            pid1=$(echo $PIDs | awk '{ print $1 }')
+            pid2=$(echo $PIDs | awk '{ print $2 }')
+            pid3=$(echo $PIDs | awk '{ print $3 }')
+
+            for pid in $pid1 $pid2 $pid3
+            do
+                if [ "$pid" != "" ]; then
+                    kill -9 $pid
+                fi
+            done
+        else
+            return 0
+        fi
+    done
+}
+
+case "$1" in
+        start)
+            echo -n "Starting $DAEMON_NAME daemon: "
+            daemon_start
+            if [ "$?" -ne "0" ]; then
+                echo "error"
+                exit 1
+            else
+                echo "ok"
+            fi
+        ;;
+
+        stop)
+            echo -n "Stopping $DAEMON_NAME daemon: "
+            daemon_stop
+            if [ "$?" -ne "0" ]; then
+                echo "error"
+                exit 1
+            else
+                echo "ok"
+            fi
+        ;;
+
+        restart)
+            echo -n "Restarting $DAEMON_NAME daemon: "
+            daemon_stop && daemon_start
+            if [ "$?" -ne "0" ]; then
+                echo "error"
+                exit 1
+            else
+                echo "ok"
+            fi
+
+        ;;
+
+
+        status)
+            RES=$((ps -ef | grep $DAEMON_NAME.pl | grep -v grep) 2>&1)
+            if [ "$RES" != "" ]; then
+                echo "program $DAEMON_NAME running"
+            else
+                echo "program $DAEMON_NAME is not running"
+            fi
+        ;;
+
+        *)
+        echo "$DAEMON_NAME program unknown command. Usage: {start|stop|restart|status}"
+esac
+
+exit 0

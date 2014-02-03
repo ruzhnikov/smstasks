@@ -4,7 +4,7 @@ use 5.008009;
 use strict;
 use warnings;
 
-use constant DEFAULT_TTL => '600';  # время "жизни" СМС
+use constant DEFAULT_TTL => '10';  # время "жизни" СМС
 
 sub send_sms {
     my ( $self, %data ) = @_;

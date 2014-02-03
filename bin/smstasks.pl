@@ -23,9 +23,9 @@ use 5.008009;
 use FindBin qw/ $Bin /;
 use lib "$Bin/../lib";
 
-use Carp;
 use Date::Parse qw/ str2time /;
 use POSIX   qw/ setsid /;
+use Data::Dumper;
 
 use IPC::Shareable;
 
@@ -37,6 +37,7 @@ use constant {
     MAX_FORK_COUNT      => 2,   # кол-во форков
     DEFAULT_TIME_START  => '11:00',
     DEFAULT_TIME_END    => '20:00',
+    DEFAULT_VERBOSE     => 0,
 };
 
 # проверяем, не запущен ли скрипт ранее
@@ -50,6 +51,9 @@ tie my %TASKS, 'IPC::Shareable' or die "tied failed: $!";
 # частота обращения к БД
 my $db_wait_time = SmsTasks::get_config->{general}->{db_poll_frequency};
 $db_wait_time ||= DEFAULT_WAIT_TIME;
+
+my $VERBOSE = SmsTasks::get_config->{general}->{verbose};
+$VERBOSE ||= DEFAULT_VERBOSE;
 
 # сон основной программы
 my $wait_time = DEFAULT_WAIT_TIME;
@@ -73,15 +77,22 @@ sub work {
             next;
         }
 
+        if ( scalar keys %TASKS > 0 ) {
+            $st->log("proceed to sending sms for tasks...");
+        }
+
         for my $task_id ( keys %TASKS ) {
 
             do_wait() unless ( check_run_time() );
+            $st->log("task id: $task_id");
 
             # выбираем номера для задачи
             my $numbers = $st->db->get_numbers( $task_id, NUMBERS_PER_ITER );
 
             # проверяем, отработала ли задача или остались ещё не доставленные номера СМС
             if ( scalar @{ $numbers } == 0 ) {
+                $st->log("no numbers for task $task_id has not been found");
+
                 if ( scalar keys %{ $TASKS{ $task_id }->{numbers} } == 0 ) {
                     set_task_suc( $task_id );
                     next;
@@ -91,19 +102,40 @@ sub work {
                 }
             }
 
+            $st->log( "obtained numbers data: " . Dumper( $numbers ) ) if ( $VERBOSE );
+
             for my $number_data ( @{ $numbers } ) {
 
                 my $number_id = $number_data->{id};
 
+                $st->log("send sms to number " . $number_data->{number});
+
+                my $message = $number_data->{message};
+                require utf8;
+                utf8::encode( $message ) if ( utf8::is_utf8( $message ) );
+
                 # отправляем СМС
-                my $res = $st->ua->send_sms(
-                    number  => $number_data->{number},
-                    message => $number_data->{message},
-                );
+                my $res;
+
+                eval {
+                    $res = $st->ua->send_sms(
+                        number  => $number_data->{number},
+                        message => $message,
+                    );
+                };
+
+                if ( $@ ) {
+                    $st->log("Can't send message: $@");
+                    next;
+                }
 
                 my $res_code = $res->response_field('push')->{'-res'};
                 my $res_descr = $res->response_field('push')->{'-description'};
                 my $push_id = $res->response_field('push')->{'-push_id'};
+
+                $st->log("send status is $res_code");
+                $st->log("description is $res_descr") if ( $res_descr && $VERBOSE );
+                $st->log("push_id is $push_id") if ( $push_id );
 
                 my $stat_hash = {
                     task_id => $task_id,
@@ -124,7 +156,8 @@ sub work {
                     $stat_hash->{status} = 'success';
                     $db_method = 'set_number_suc';
                 }
-                elsif ( $res_code == 1 || $res_code == 2 ) { # передано в обработку, не доставлено пока
+                elsif ( $res_code == 1 || $res_code == 2 ) {
+                    # передано в обработку, не доставлено пока
                     $stat_hash->{status} = 'running';
                     $db_method = 'set_number_run';
 
@@ -139,19 +172,15 @@ sub work {
                     $db_method = 'set_number_fail';
                 }
 
-                check_db();
-
                 my @db_method_data;
                 push @db_method_data, $number_id;
-                push @db_method_data, $push_id if ( $db_method eq 'running' );
+                push @db_method_data, $push_id if ( $push_id && $stat_hash->{status} eq 'running' );
 
+                check_db();
                 $st->db->$db_method( @db_method_data );
                 $st->db->set_stat( 'numbers', $stat_hash );
             }
         }
-
-        kill -9, @child_pids;   # TODO: убрать потом
-        exit;   # TODO: убрать потом
     }
 }
 
@@ -192,8 +221,6 @@ sub db_process {
             }
             elsif ( $task_status eq 'running' ) {
                 next if ( $TASKS{ $task_id } );
-                check_db();
-                set_task_run( $task_id );
                 $TASKS{ $task_id }->{status} = 'running';
                 $TASKS{ $task_id }->{numbers} = {};
             }
@@ -227,17 +254,35 @@ sub ua_process {
             my $numbers = $TASKS{ $task_id }->{numbers};
             next if ( ! $numbers || scalar keys %{ $numbers } == 0 );
 
+            $st->ua->log("processing of previously sent messages for task $task_id");
+
             for my $number_id ( keys %{ $numbers } ) {
                 next unless $numbers->{$number_id}->{push_id};
 
-                my $res = $st->ua->get_status(
-                    push_id => $numbers->{$number_id}->{push_id},
-                    number  => $numbers->{$number_id}->{number},
-                );
+                if ( $VERBOSE ) {
+                    $st->ua->log("obtained number data: " . Dumper( $numbers->{$number_id} ) );
+                }
+
+                my $res;
+
+                eval {
+                    $res = $st->ua->get_status(
+                        push_id => $numbers->{$number_id}->{push_id},
+                        number  => $numbers->{$number_id}->{number},
+                    );
+                };
+
+                if ( $@ ) {
+                    $st->ua->log("Can't get status: $@");
+                    next;
+                }
 
                 # берём данные из ответа
                 my $res_code = $res->response_field('sms')->{'-status'};
                 my $res_descr = $res->response_field('sms')->{'-description'};
+
+                $st->ua->log("send status is $res_code");
+                $st->ua->log("description is $res_descr") if ( $res_descr && $VERBOSE );
 
                 my $stat_hash = {
                     task_id => $task_id,
@@ -283,6 +328,9 @@ sub ua_process {
     }
 }
 
+# проверим ранее запущенные задачи
+check_previous_run_tasks();
+
 setsid();
 
 my $child_pid_1 = fork();
@@ -293,9 +341,9 @@ if ( $child_pid_1 ) { # родитель
     push @child_pids, $child_pid_1;
     $st->log("start working");
 
-    my $child_pid_2 = fork or die "cannot create fork: $!";
+    my $child_pid_2 = fork; #or die "cannot create fork: $!";
 
-    if ( $child_pid_2 ) {    
+    if ( $child_pid_2 ) {
         push @child_pids, $child_pid_2;
         die "MAX COUNT ALREDY PROCESS RUNNING!" if ( scalar @child_pids > MAX_FORK_COUNT );
         work();
@@ -345,25 +393,11 @@ sub set_task_suc {
     return 1;
 }
 
-sub task_status {
-    my $task_id = shift;
-
-    return unless ( $task_id && $TASKS{ $task_id }->{status} );
-    return $TASKS{ $task_id }->{status};
-}
-
-sub number {
-    my ( $task, $number_id ) = @_;
-
-    return unless ( $task && $number_id );
-    return $task->{numbers}->{ $number_id };
-}
-
 # проверяем доступность БД
 sub check_db {
 
     while( 1 ) {
-        last if ( $st->db->ping );
+        last if ( $st->db->{dbh} && $st->db->ping );
         $st->log("Cannot get DB connect, wait to connect...");
         $st->db->connect();
         sleep( $wait_time );
@@ -397,8 +431,8 @@ sub _check_unknown_ids {
 
 # проверяем, попадаем ли в разрешённые временные рамки
 sub check_run_time {
-    my $time_start = $SmsTasks::get_config->{general}->{time_start};
-    my $time_end   = $SmsTasks::get_config->{general}->{time_end};
+    my $time_start = SmsTasks::get_config->{general}->{time_start};
+    my $time_end   = SmsTasks::get_config->{general}->{time_end};
 
     $time_start ||= DEFAULT_TIME_START;
     $time_end   ||= DEFAULT_TIME_END;
@@ -416,7 +450,37 @@ sub check_run_time {
     return 1 if ( time > str2time( $date_start ) && 
                     time < str2time( $date_end ) );
 
+    $st->log("current time is not within the permitted range");
+
     return;
+}
+
+# чекаем таски, что были запущены ранее
+# и выбираем из них номера со статусом running
+sub check_previous_run_tasks {
+    my $tasks = $st->db->get_run_tasks;
+
+    return 1 if ( scalar @{ $tasks } == 0 );
+
+    # TODO: переработать механизм обработки номеров,
+    # в текщем виде он может захватывать не все номера( сейчас берёт 100 номеров )
+    for my $task_id ( @{ $tasks } ) {
+        my $numbers = $st->db->get_run_numbers( $task_id, 1000 );
+        next if ( scalar @{ $numbers } == 0 );
+
+        for my $number_data ( @{ $numbers } ) {
+            next unless ( $number_data->{push_id} );
+
+            my $number_id = $number_data->{id};
+            $TASKS{ $task_id }->{numbers}->{ $number_id } = {
+                push_id => $number_data->{push_id},
+                number  => $number_data->{number},
+                uid     => $number_data->{uid},
+            };
+        }
+    }
+
+    return 1;
 }
 
 sub do_wait {
@@ -426,7 +490,7 @@ sub do_wait {
         sleep( $wait_time );
         next unless ( check_run_time() );
         return 1;
-    }    
+    }
 }
 
 sub me_running {
@@ -437,7 +501,7 @@ sub me_running {
 
 sub do_exit {
     warn "Program alredy running!";
-    exit;
+    exit 1;
 }
 
 __END__

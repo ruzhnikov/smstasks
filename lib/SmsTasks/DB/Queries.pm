@@ -86,7 +86,7 @@ sub get_new_tasks {
 
     return $self->get_tasks_query(
         status => [ qw/ new / ],
-        fields => [ qw/ id status / ],
+        fields => [ qw/ id / ],
     );
 }
 
@@ -95,7 +95,7 @@ sub get_run_tasks {
 
     return $self->get_tasks_query(
         status => [ qw/ running / ],
-        fields => [ qw/ id status / ],
+        fields => [ qw/ id / ],
     );
 }
 
@@ -104,7 +104,7 @@ sub get_suc_tasks {
 
     return $self->get_tasks_query(
         status => [ qw/ success / ],
-        fields => [ qw/ id status / ],
+        fields => [ qw/ id / ],
     );
 }
 
@@ -113,7 +113,7 @@ sub get_fail_tasks {
 
     return $self->get_tasks_query(
         status => [ qw/ fail / ],
-        fields => [ qw/ id status / ],
+        fields => [ qw/ id / ],
     );
 }
 
@@ -300,7 +300,8 @@ sub get_numbers_query {
         $wherecond .= ' AND num.repeat_count <= ' . $repeat_count;
     }
 
-    my $query = qq/ SELECT num.id id, num.number number, num.uid uid, mes.message message
+    my $query = qq/ SELECT num.id id, num.number number, num.uid uid, num.push_id push_id,
+        mes.message message
         FROM sms_task_numbers num
         LEFT JOIN sms_task_messages mes
         ON (num.message_id = mes.id)
@@ -320,6 +321,20 @@ sub get_numbers {
         {
             status  => [ qw/ new fail / ],
             check_repeat => 1,
+            limit   => $limit,
+        }
+    );
+}
+
+sub get_run_numbers {
+    my ( $self, $task_id, $limit ) = @_;
+
+    return unless ( $task_id );
+
+    $limit ||=DEFAULT_LIMIT;
+    return $self->get_numbers_query( $task_id,
+        {
+            status  => [ qw/ running / ],
             limit   => $limit,
         }
     );
