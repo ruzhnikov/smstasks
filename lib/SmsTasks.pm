@@ -1,5 +1,7 @@
 package SmsTasks;
 
+=encoding utf8
+
 =head1 NAME
 
 SmsTasks
