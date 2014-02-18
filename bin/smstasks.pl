@@ -24,7 +24,7 @@ use FindBin qw/ $Bin /;
 use lib "$Bin/../lib";
 
 use Date::Parse qw/ str2time /;
-use POSIX   qw/ setsid /;
+use POSIX   qw/ setsid :sys_wait_h /;
 use Data::Dumper;
 
 use IPC::Shareable;
@@ -38,6 +38,7 @@ use constant {
     DEFAULT_TIME_START  => '11:00',
     DEFAULT_TIME_END    => '20:00',
     DEFAULT_VERBOSE     => 0,
+    GENERAL_WAIT_TIME   => 120,
 };
 
 # проверяем, не запущен ли скрипт ранее
@@ -58,15 +59,77 @@ $VERBOSE ||= DEFAULT_VERBOSE;
 # сон основной программы
 my $wait_time = DEFAULT_WAIT_TIME;
 
-my @child_pids;
+my %child_pids;
 
 my $st = SmsTasks->new();
 
-# главный процесс, занимается отправкой СМС
-sub work {
+# проверим ранее запущенные задачи
+check_previous_run_tasks();
 
-    # TODO: приделать обработку сигналов %SIG из операционной системы
-    # в т.ч. $SIG{CHLD}
+setsid();
+
+# основная нить программы: родитель и потомки
+$st->log("start working");
+
+for my $num ( 1..3 ) {
+    my $pid = fork();
+
+    if ( $pid ) { # родитель
+        if ( $num == 1 ) {
+            $child_pids{$pid} = 'ua_process';
+        }
+        elsif ( $num == 2 ) {
+            $child_pids{$pid} = 'db_process';
+        }
+        else {
+            $child_pids{$pid} = 'work_process';
+        }
+    }
+    else { # потомки
+        ua_process() if ( $num == 1 );
+        db_process() if ( $num == 2 );
+        work_process() if ( $num == 3 );
+    }
+}
+
+general_process();
+
+
+sub general_process {
+
+    $SIG{CHLD} = \&handle_sig_chld;
+
+    while ( 1 ) {
+        my $pids_cnt = scalar keys %child_pids;
+        $st->log("running " . $pids_cnt . " pids");
+        $st->log("pids is " . Dumper( \%child_pids ) );
+
+        sleep( GENERAL_WAIT_TIME );
+    }
+}
+
+sub handle_sig_chld {
+    my $chldpid = waitpid( -1, &WNOHANG );
+    $st->log("child with pid $chldpid down!");
+    $st->log("restart child");
+    kill -9, $chldpid;
+    my $process = delete $child_pids{$chldpid};
+
+    my $pid = fork();
+    if ( $pid ) {
+        $child_pids{$pid} = $process;
+    }
+    else {
+        ua_process() if ( $process eq 'ua_process' );
+        db_process() if ( $process eq 'db_process' );
+        work_process() if ( $process eq 'work_process' );
+    }
+}
+
+# главный процесс, занимается отправкой СМС
+sub work_process {
+
+    $st->log("begin working work_process with pid $$");
 
     while ( 1 ) {
 
@@ -188,7 +251,7 @@ sub work {
 # добавляет новые задачи в глобальный массив
 sub db_process {
 
-    # TODO: приделать обработку сигналов %SIG
+    $st->log("begin working db_process with pid $$");
 
     while( 1 ) {
 
@@ -240,7 +303,7 @@ sub db_process {
 # процесс, проверяющий статусы отправленных СМС
 sub ua_process {
     
-    # TODO: приделать обработку сигналов %SIG
+    $st->log("begin working ua_process with pid $$");
 
     while ( 1 ) {
 
@@ -326,34 +389,6 @@ sub ua_process {
 
         sleep( $wait_time );
     }
-}
-
-# проверим ранее запущенные задачи
-check_previous_run_tasks();
-
-setsid();
-
-my $child_pid_1 = fork();
-
-# основная нить программы: родитель и потомки
-if ( $child_pid_1 ) { # родитель
-
-    push @child_pids, $child_pid_1;
-    $st->log("start working");
-
-    my $child_pid_2 = fork; #or die "cannot create fork: $!";
-
-    if ( $child_pid_2 ) {
-        push @child_pids, $child_pid_2;
-        die "MAX COUNT ALREDY PROCESS RUNNING!" if ( scalar @child_pids > MAX_FORK_COUNT );
-        work();
-    }
-    else {  # потомок #2
-        db_process();
-    }
-}
-else {  # потомок #1
-    ua_process();
 }
 
 # помечаем задачу как запущенную
