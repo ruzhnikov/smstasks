@@ -14,7 +14,7 @@ use POSIX   qw/ strftime /;
 
 use constant DEFAULT_LIMIT  => 10;  # лимит выборки данных из БД
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 METHODS
 

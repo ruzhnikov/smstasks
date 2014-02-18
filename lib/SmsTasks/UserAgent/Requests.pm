@@ -6,7 +6,7 @@ use 5.008009;
 
 use constant DEFAULT_TTL => '10';  # время "жизни" СМС
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 sub send_sms {
     my ( $self, %data ) = @_;

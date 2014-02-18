@@ -41,6 +41,8 @@ use constant {
     GENERAL_WAIT_TIME   => 120,
 };
 
+our $VERSION = '0.02';
+
 # проверяем, не запущен ли скрипт ранее
 do_exit() if ( me_running() );
 do_wait() unless ( check_run_time() );
