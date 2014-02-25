@@ -41,7 +41,7 @@ use constant {
     GENERAL_WAIT_TIME   => 120,
 };
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 # проверяем, не запущен ли скрипт ранее
 do_exit() if ( me_running() );
@@ -110,6 +110,7 @@ sub general_process {
     }
 }
 
+# обрабатываем сигналы потомков
 sub handle_sig_chld {
     my $chldpid = waitpid( -1, &WNOHANG );
     $st->log("child with pid $chldpid down!");
@@ -143,22 +144,33 @@ sub work_process {
         }
 
         if ( scalar keys %TASKS > 0 ) {
-            $st->log("proceed to sending sms for tasks...");
+            $st->log( "proceed to sending sms for tasks..." );
         }
 
         for my $task_id ( keys %TASKS ) {
 
             do_wait() unless ( check_run_time() );
-            $st->log("task id: $task_id");
+            $st->log( "task id: $task_id" );
 
             # выбираем номера для задачи
-            my $numbers = $st->db->get_numbers( $task_id, NUMBERS_PER_ITER );
+            check_db();
+
+            my $numbers;
+            eval {
+                $numbers = $st->db->get_numbers( $task_id, NUMBERS_PER_ITER );
+            };
+            if ( $@ ) {
+                $st->log( "error when requesting data: $@" );
+                sleep( $wait_time );
+                next;
+            }
 
             # проверяем, отработала ли задача или остались ещё не доставленные номера СМС
             if ( scalar @{ $numbers } == 0 ) {
-                $st->log("no numbers for task $task_id has not been found");
+                $st->log("numbers for task $task_id has not been found");
 
                 if ( scalar keys %{ $TASKS{ $task_id }->{numbers} } == 0 ) {
+                    $st->log( "set task $task_id as success" );
                     set_task_suc( $task_id );
                     next;
                 }
@@ -167,17 +179,17 @@ sub work_process {
                 }
             }
 
+            require utf8;
+            grep { utf8::encode( $_->{message} ) if utf8::is_utf8( $_->{message} ) } @{ $numbers };
+
             $st->log( "obtained numbers data: " . Dumper( $numbers ) ) if ( $VERBOSE );
 
+            # начинаем обрабатывать полученные номера
             for my $number_data ( @{ $numbers } ) {
 
                 my $number_id = $number_data->{id};
 
                 $st->log("send sms to number " . $number_data->{number});
-
-                my $message = $number_data->{message};
-                require utf8;
-                utf8::encode( $message ) if ( utf8::is_utf8( $message ) );
 
                 # отправляем СМС
                 my $res;
@@ -185,7 +197,7 @@ sub work_process {
                 eval {
                     $res = $st->ua->send_sms(
                         number  => $number_data->{number},
-                        message => $message,
+                        message => $number_data->{message},
                     );
                 };
 
@@ -194,9 +206,9 @@ sub work_process {
                     next;
                 }
 
-                my $res_code = $res->response_field('push')->{'-res'};
+                my $res_code  = $res->response_field('push')->{'-res'};
                 my $res_descr = $res->response_field('push')->{'-description'};
-                my $push_id = $res->response_field('push')->{'-push_id'};
+                my $push_id   = $res->response_field('push')->{'-push_id'};
 
                 $st->log("send status is $res_code");
                 $st->log("description is $res_descr") if ( $res_descr && $VERBOSE );
