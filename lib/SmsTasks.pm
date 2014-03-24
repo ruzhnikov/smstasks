@@ -18,6 +18,8 @@ use Config::Tiny;
 use SmsTasks::DB;
 use SmsTasks::UserAgent;
 use SmsTasks::Log;
+use SmsTasks::Utils;
+use SmsTasks::Cache;
 
 # задаём константы
 use constant {
@@ -26,12 +28,14 @@ use constant {
     DEFAULT_REPEAT_ON_FAIL  => 'no',
     DEFAULT_REPEAT_COUNT    => 1,
     DEFAULT_LOGFILE         => '/var/log/smstasks/smstasks.log',
+    DEFAULT_TIME_START      => '11:00',
+    DEFAULT_TIME_END        => '20:00',
 };
 
 # обязательные параметры из yml-файла
 use constant REQUIRED_SETTINGS => qw/ general database useragent /;
 
-our $VERSION = '0.02';
+our $VERSION = '0.04';
 
 =head1 METHODS
 
@@ -49,7 +53,7 @@ sub new {
     $class = ref $class || $class;
 
     my $self = bless {}, $class;
-    $self->_init();
+    $self->_init;
 
     return $self;
 }
@@ -63,12 +67,33 @@ sub new {
 sub _init {
     my ( $self ) = @_;
 
-    $self->init_logger();
+    $self->{logger} = $self->_get_logger;
+    $self->_init_db;
+    $self->_init_ua;
+    $self->_init_cache;
+    confess "cannot connect to database!" if ( ref $self->{db}->{dbh} ne 'DBI::db' );
+}
 
-    $self->db->connect();
-    confess "cannot connect to database!" if ( ref $self->db->{dbh} ne 'DBI::db' );
+sub _init_db {
+    my ( $self ) = @_;
 
-    $self->ua;
+    $self->{db} = SmsTasks::DB->new( $self->config->{database} );
+    $self->{db}->{logger} = $self->_get_logger;
+    $self->{db}->connect;
+}
+
+sub _init_ua {
+    my ( $self ) = @_;
+
+    $self->{ua} = SmsTasks::UserAgent->new( $self->config->{useragent} );
+    $self->{ua}->{logger} = $self->_get_logger;
+}
+
+sub _init_cache {
+    my ( $self ) = @_;
+
+    $self->{cache} = SmsTasks::Cache->new;
+    $self->{cache}->init;
 }
 
 sub config {
@@ -102,9 +127,8 @@ sub get_config {
 sub db {
     my ( $self ) = @_;
 
-    unless ( $self->{db} ) {
-        $self->{db} = SmsTasks::DB->new( $self->config->{database} );
-    }
+    $self->{db} ||= SmsTasks::DB->new( $self->config->{database} );
+    $self->{db}->check_db;
 
     return $self->{db};
 }
@@ -112,11 +136,17 @@ sub db {
 sub ua {
     my ( $self ) = @_;
 
-    unless ( $self->{ua} ) {
-        $self->{ua} = SmsTasks::UserAgent->new( $self->config->{useragent} );
-    }
+    $self->{ua} ||= SmsTasks::UserAgent->new( $self->config->{useragent} );
 
     return $self->{ua};
+}
+
+sub cache {
+    my ( $self ) = @_;
+
+    $self->{cache} ||= SmsTasks::Cache->new;
+
+    return $self->{cache};
 }
 
 sub _get_logger {
@@ -131,16 +161,6 @@ sub _get_logger {
     return $self->{logger};
 }
 
-sub init_logger {
-    my ( $self ) = @_;
-
-    $self->{logger} = $self->_get_logger();
-    $self->db->{logger} = $self->_get_logger();
-    $self->ua->{logger} = $self->_get_logger();
-
-    return 1;
-}
-
 sub log {
     my ( $self, $message ) = @_;
 
@@ -150,6 +170,18 @@ sub log {
     $self->_get_logger->log( $message );
 
     return 1;
+}
+
+sub check_run_time {
+    my ( $self ) = @_;
+
+    my $time_start = $self->config->{general}->{time_start};
+    my $time_end   = $self->config->{general}->{time_end};
+
+    $time_start ||= DEFAULT_TIME_START;
+    $time_end   ||= DEFAULT_TIME_END;
+
+    return SmsTasks::Utils::check_run_time( $time_start, $time_end );
 }
 
 1;
