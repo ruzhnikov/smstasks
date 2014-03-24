@@ -10,11 +10,11 @@ use strict;
 use warnings;
 use 5.008009;
 
-use POSIX   qw/ strftime /;
+use SmsTasks::Utils;
 
 use constant DEFAULT_LIMIT  => 10;  # лимит выборки данных из БД
 
-our $VERSION = '0.02';
+our $VERSION = '0.04';
 
 =head1 METHODS
 
@@ -156,14 +156,14 @@ sub set_task_date_start {
     my ( $self, $task_id, $date_start ) = @_;
 
     return unless ( $task_id );
-    return $self->set_task_query( $task_id, { date_start => $self->get_now } );
+    return $self->set_task_query( $task_id, { date_start => SmsTasks::Utils::get_now } );
 }
 
 sub set_task_date_end {
     my ( $self, $task_id, $date_end ) = @_;
 
     return unless ( $task_id );
-    return $self->set_task_query( $task_id, { date_end => $self->get_now } );
+    return $self->set_task_query( $task_id, { date_end => SmsTasks::Utils::get_now } );
 }
 
 sub set_task_run {
@@ -173,7 +173,7 @@ sub set_task_run {
     return $self->set_task_query( $task_id,
         {
             status => 'running',
-            date_start => $self->get_now,
+            date_start => SmsTasks::Utils::get_now,
         }
     );
 }
@@ -185,7 +185,7 @@ sub set_task_suc {
     return $self->set_task_query( $task_id,
         {
             status => 'success',
-            date_end => $self->get_now,
+            date_end => SmsTasks::Utils::get_now,
         }
     );
 }
@@ -197,7 +197,7 @@ sub set_task_fail {
     return $self->set_task_query( $task_id,
         {
             status => 'fail',
-            date_end => $self->get_now,
+            date_end => SmsTasks::Utils::get_now,
         }
     );
 }
@@ -282,7 +282,8 @@ sub get_numbers_query {
     my @wherecond = ();
     my $wherecond;
 
-    my $limit = $param->{limit} ? $param->{limit} : DEFAULT_LIMIT;
+    my $limit  = $param->{limit} ? $param->{limit} : DEFAULT_LIMIT;
+    my $offset = $param->{offset} ? $param->{offset} : 0;
 
     if ( $param->{status} ) {
         for my $status ( @{ $param->{status} } ) {
@@ -306,7 +307,7 @@ sub get_numbers_query {
         LEFT JOIN sms_task_messages mes
         ON (num.message_id = mes.id)
         WHERE num.task_id = ? / . ( $wherecond ? "$wherecond " : ' ' ) .
-        qq/ ORDER BY num.status ASC LIMIT 0,/ . $limit;
+        qq/ ORDER BY num.status ASC LIMIT / . $offset . ',' . $limit;
 
     return $self->dbh->selectall_arrayref( $query, { Slice => {} }, @bind_params );
 }
@@ -327,7 +328,7 @@ sub get_numbers {
 }
 
 sub get_run_numbers {
-    my ( $self, $task_id, $limit ) = @_;
+    my ( $self, $task_id, $limit, $offset ) = @_;
 
     return unless ( $task_id );
 
@@ -336,6 +337,7 @@ sub get_run_numbers {
         {
             status  => [ qw/ running / ],
             limit   => $limit,
+            offset  => $offset,
         }
     );
 }
@@ -346,7 +348,7 @@ sub set_number_query {
     return unless ( $number_id && $param );
 
     my $query = qq/ UPDATE sms_task_numbers SET /;
-                
+
     while ( my ( $key, $value ) = each( %{ $param } ) ) {
         $query .= "$key = \'$value\',";
     }
@@ -388,12 +390,6 @@ sub set_number_fail {
     $query .= qq/ WHERE id = ? /;
 
     return $self->dbh->do( $query, undef, $number_id );
-}
-
-sub get_now {
-    my ( $self ) = @_;
-
-    return strftime "%Y:%m:%d %H:%M:%S", localtime(time);
 }
 
 sub set_stat {

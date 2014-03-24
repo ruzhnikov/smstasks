@@ -5,6 +5,8 @@ use warnings;
 use DBI;
 use Carp;
 
+use constant DEFAULT_WAIT_TIME   => 7;
+
 use base qw/ SmsTasks::DB::Queries /;
 
 our $VERSION = $SmsTasks::DB::Queries::VERSION;
@@ -88,10 +90,19 @@ sub dbh {
     return $self->{dbh};
 }
 
-sub check_avail {
+sub check_db {
     my ( $self ) = @_;
 
-    return $self->{dbh} && $self->ping;
+    my $wait_time = DEFAULT_WAIT_TIME;
+
+    while( 1 ) {
+        last if ( $self->{dbh} && $self->ping );
+        $self->log("Cannot get DB connect, wait to connect...");
+        $self->connect;
+        sleep( $wait_time );
+    }
+
+    return 1;
 }
 
 1;
