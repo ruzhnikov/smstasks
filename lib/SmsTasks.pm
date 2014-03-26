@@ -93,7 +93,6 @@ sub _init_cache {
     my ( $self ) = @_;
 
     $self->{cache} = SmsTasks::Cache->new;
-    $self->{cache}->init;
 }
 
 sub config {
