@@ -4,6 +4,8 @@ use strict;
 use warnings;
 use 5.008009;
 
+our $VERSION = '0.10';
+
 sub set {
     my ( $self, %param ) = @_;
 
@@ -49,8 +51,15 @@ sub get {
     }
 }
 
+sub hget {
+    my ( $self, $hash, $key ) = @_;
+
+    return unless ( $hash && $key );
+    return $self->get( hash => $hash, key => $key );
+}
+
 sub exists {
-    my ( $self, %param ) =@_;
+    my ( $self, %param ) = @_;
 
     return if ( scalar keys %param == 0 );
     return unless ( $param{key} );
@@ -72,10 +81,10 @@ sub hexists {
     return $self->exists( hash => $hash, key => $key );
 }
 
-sub flushall {
+sub flushdb {
     my ( $self ) = @_;
 
-    return $self->r->flushall;
+    return $self->r->flushdb;
 }
 
 sub del {

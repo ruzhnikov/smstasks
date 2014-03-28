@@ -10,9 +10,9 @@ use constant {
     NUMBERS_DBINDEX     => 3,
 };
 
-
 use base qw/ SmsTasks::Cache::BaseQueries /;
 
+our $VERSION = $SmsTasks::Cache::BaseQueries::VERSION;
 
 sub set_task_data {
     my ( $self, $task_id, $data ) = @_;
@@ -52,7 +52,7 @@ sub _get_task_data_by_number_id {
     my @number_id_keys = $self->hkeys( $number_id );
 
     for my $key ( @number_id_keys ) {
-        $number_id_data->{$key} = $self->get( $number_id, $key );
+        $number_id_data->{$key} = $self->hget( $number_id, $key );
     }
 
     return $number_id_data;
@@ -88,10 +88,11 @@ sub del_task_data {
             key  => $number_id,
         );
 
-
+        $self->r->select( NUMBERS_DBINDEX );
         $self->del( key => $number_id );
     }
     else {
+        $self->r->select( TASKS_DBINDEX );
         $self->del( key => $task_id );
     }
 
@@ -110,6 +111,49 @@ sub get_tasks {
 
     $self->r->select( TASKS_DBINDEX );
     return $self->keys;
+}
+
+sub get_task_data_count {
+    my ( $self, $task_id ) = @_;
+
+    return 0 unless ( $task_id );
+
+    my $task_data = $self->get_task_data( $task_id );
+
+    return 0 unless ( $task_data );
+    return scalar keys %{ $task_data };
+}
+
+sub set_task_status {
+    my ( $self, $task_id, $status ) = @_;
+
+    $status ||= 'running';
+
+    return unless ( $task_id );
+
+    $self->r->select( TASKS_DBINDEX );
+    return $self->hset( $task_id, 'status', $status );
+}
+
+sub task_exists {
+    my ( $self, $task_id ) = @_;
+
+    return unless ( $task_id );
+
+    $self->r->select( TASKS_DBINDEX );
+    return $self->exists( key => $task_id );
+}
+
+sub clear {
+    my ( $self ) = @_;
+
+    $self->r->select( TASKS_DBINDEX );
+    $self->flushdb;
+
+    $self->r->select( NUMBERS_DBINDEX );
+    $self->flushdb;
+
+    return 1;
 }
 
 1;

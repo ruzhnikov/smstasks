@@ -35,7 +35,7 @@ use constant {
 # обязательные параметры из yml-файла
 use constant REQUIRED_SETTINGS => qw/ general database useragent /;
 
-our $VERSION = '0.04';
+our $VERSION = '0.10';
 
 =head1 METHODS
 
@@ -98,9 +98,7 @@ sub _init_cache {
 sub config {
     my ( $self ) = @_;
 
-    unless ( $self->{config} ) {
-        $self->{config} = get_config();
-    }
+    $self->{config} ||= get_config();
 
     return $self->{config};
 }

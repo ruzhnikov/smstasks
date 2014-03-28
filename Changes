@@ -1,5 +1,13 @@
 Revision history for smstasks
 
+0.10    2014-03-28
+
+    - significant release
+        * caching data transferred to Redis
+        * IPC::Shareable is no longer required
+        * most of the functions taken out of the script in modules
+        * added module SmsTasks::Utils
+
 0.03    2014-02-25
 
     - minor fixes
@@ -11,5 +19,5 @@ Revision history for smstasks
     - added tests
 
 0.01    2014-02-03
-    
+
     - first release

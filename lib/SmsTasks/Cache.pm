@@ -8,6 +8,8 @@ use Redis::Fast;
 
 use base qw/ SmsTasks::Cache::Queries /;
 
+our $VERSION = $SmsTasks::Cache::BaseQueries::VERSION;
+
 sub new {
     my $class = shift;
 
@@ -31,6 +33,15 @@ sub r {
     $self->{redis} ||= Redis::Fast->new;
 
     return $self->{redis};
+}
+
+sub log {
+    my ( $self, $message ) = @_;
+
+    my $prefix = 'Cache';
+    $message = $prefix . ': ' . $message;
+
+    warn $message;
 }
 
 1;

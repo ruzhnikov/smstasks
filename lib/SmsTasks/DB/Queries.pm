@@ -14,7 +14,7 @@ use SmsTasks::Utils;
 
 use constant DEFAULT_LIMIT  => 10;  # лимит выборки данных из БД
 
-our $VERSION = '0.04';
+our $VERSION = '0.10';
 
 =head1 METHODS
 

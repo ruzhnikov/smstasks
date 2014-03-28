@@ -18,7 +18,7 @@ use 5.008009;
 
 # список всех необходимых модулей
 my @required_modules = qw/ base Carp Config::Tiny constant DBI Digest::MD5 
-            Log::Log4perl LWP::UserAgent utf8 XML::Fast Data::Dumper Date::Parse IPC::Shareable
+            Log::Log4perl LWP::UserAgent utf8 XML::Fast Data::Dumper Date::Parse Redis::Fast
             LWP::Protocol::https IO::Socket::SSL /;
 
 for my $module ( @required_modules ) {

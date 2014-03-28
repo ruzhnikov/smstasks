@@ -8,7 +8,7 @@
 #
 #   DESCRIPTION: Скрипт отправки СМС
 #
-#  REQUIREMENTS: Carp, Date::Parse, POSIX, IPC::Shareable, constant, SmsTasks::*
+#  REQUIREMENTS: Carp, Date::Parse, POSIX, constant, Data::Dumper, SmsTasks::*
 #
 #       AUTHORS: Alexander Ruzhnikov <ruzhnikov85@gmail.com>
 #
@@ -26,8 +26,6 @@ use lib "$Bin/../lib";
 use POSIX   qw/ setsid :sys_wait_h /;
 use Data::Dumper;
 
-use IPC::Shareable;
-
 use SmsTasks;
 use SmsTasks::Utils;
 
@@ -38,13 +36,10 @@ use constant {
     GENERAL_WAIT_TIME   => 120, # время "сна" главного управляющего процесса
 };
 
-our $VERSION = '0.04';
+our $VERSION = '0.10';
 
 # проверяем, не запущен ли скрипт ранее
 do_exit() if ( me_running() );
-
-# глобальный список задач -- делаем видимым из разных процессов
-tie my %TASKS, 'IPC::Shareable' or die "tied failed: $!";
 
 # частота обращения к БД
 my $db_wait_time = SmsTasks::get_config->{general}->{db_poll_frequency};
@@ -53,7 +48,7 @@ $db_wait_time ||= DEFAULT_WAIT_TIME;
 my $VERBOSE = SmsTasks::get_config->{general}->{verbose};
 $VERBOSE ||= DEFAULT_VERBOSE;
 
-# сон основной программы
+# длительность сна на итерациях
 my $wait_time = DEFAULT_WAIT_TIME;
 
 my %child_pids;
@@ -62,6 +57,9 @@ my $st = SmsTasks->new;
 
 # проверяем, попадаем ли в разрешённый временной интервал
 do_wait() unless ( $st->check_run_time );
+
+# почистим кэш
+$st->cache->clear;
 
 # проверим ранее запущенные задачи
 check_previous_run_tasks();
@@ -136,16 +134,15 @@ sub work_process {
 
         do_wait() unless ( $st->check_run_time );
 
-        if ( scalar keys %TASKS == 0 ) {
+        if ( $st->cache->tasks_count == 0 ) {
             sleep( $wait_time );
             next;
         }
-
-        if ( scalar keys %TASKS > 0 ) {
+        else {
             $st->log( "proceed to sending sms for tasks..." );
         }
 
-        for my $task_id ( keys %TASKS ) {
+        for my $task_id ( $st->cache->get_tasks ) {
 
             do_wait() unless ( $st->check_run_time );
             $st->log( "task id: $task_id" );
@@ -165,7 +162,9 @@ sub work_process {
             if ( scalar @{ $numbers } == 0 ) {
                 $st->log("numbers for task $task_id has not been found");
 
-                if ( scalar keys %{ $TASKS{ $task_id }->{numbers} } == 0 ) {
+                # если в БД номеров нет, а в кэше ещё остались, значит держим задачу,
+                # т.к. есть ещё недоставленные сообщения
+                if ( $st->cache->get_task_data_count( $task_id ) == 0 ) {
                     $st->log( "set task $task_id as success" );
                     set_task_suc( $task_id );
                     next;
@@ -234,11 +233,14 @@ sub work_process {
                     $stat_hash->{status} = 'running';
                     $db_method = 'set_number_run';
 
-                    $TASKS{ $task_id }->{numbers}->{ $number_id } = {
-                        push_id => $push_id,
-                        number  => $number_data->{number},
-                        uid     => $number_data->{uid},
-                    };
+                    $st->cache->set_task_data( $task_id, {
+                            number_id   => $number_id,
+                            push_id     => $push_id,
+                            number      => $number_data->{number},
+                            uid         => $number_data->{uid},
+                        }
+                    );
+
                 }
                 else {  # ошибка
                     $stat_hash->{status} = 'fail';
@@ -283,16 +285,14 @@ sub db_process {
             next unless ( $task_id && $task_status );
             $_tasks_id{ $task_id } = 1;
 
-            if ( $task_status  eq 'new' ) {
+            if ( $task_status eq 'new' ) {
                 $st->db->set_task_new( $task_id );
                 $st->db->set_task_run( $task_id );
-                $TASKS{ $task_id }->{status} = 'running';
-                $TASKS{ $task_id }->{numbers} = {};
+                $st->cache->set_task_status( $task_id, 'running' );
             }
             elsif ( $task_status eq 'running' ) {
-                next if ( $TASKS{ $task_id } );
-                $TASKS{ $task_id }->{status} = 'running';
-                $TASKS{ $task_id }->{numbers} = {};
+                next if ( $st->cache->task_exists( $task_id ) );
+                $st->cache->set_task_status( $task_id, 'running' );
             }
             else {
                 $st->log( "wrong status $task_status for the task $task_id, skipped" );
@@ -314,15 +314,15 @@ sub ua_process {
 
     while ( 1 ) {
 
-        if ( scalar keys %TASKS == 0 ) {
+        if ( $st->cache->tasks_count == 0 ) {
             sleep( $wait_time );
             next;
         }
 
-        for my $task_id ( keys %TASKS ) {
+        for my $task_id ( $st->cache->get_tasks ) {
 
-            my $numbers = $TASKS{ $task_id }->{numbers};
-            next if ( ! $numbers || scalar keys %{ $numbers } == 0 );
+            next if ( $st->cache->get_task_data_count( $task_id ) == 0 );
+            my $numbers = $st->cache->get_task_data( $task_id );
 
             $st->ua->log("processing of previously sent messages for task $task_id");
 
@@ -383,7 +383,7 @@ sub ua_process {
                 else {  # ошибка при доставке
                     $stat_hash->{status} = 'fail';
                     $db_method = 'set_number_fail';
-                    delete $numbers->{ $number_id };
+                    $st->cache->del_task_data( $task_id, $number_id );
                 }
 
                 $date ||= SmsTasks::Utils::get_now;
@@ -416,13 +416,12 @@ sub set_task_suc {
     $stat_hash->{date_start} = $date_start if ( $date_start );
 
     $st->db->set_stat( 'tasks', $stat_hash );
-
-    delete $TASKS{ $task_id };
+    $st->cache->del_task_data( $task_id );
 
     return 1;
 }
 
-# проверяем, нет ли в массиве %TASKS удалённых из БД задач
+# проверяем, нет ли в кэше удалённых из БД задач
 # %task_ids -- задачи, полученные на очередной итерации обращения к бд за задачами
 sub _check_unknown_ids {
     my ( $task_ids ) = @_;
@@ -430,16 +429,16 @@ sub _check_unknown_ids {
     return if ( ! $task_ids && scalar keys %{ $task_ids } == 0 );
 
     my @unknown_ids;
-    for ( keys %TASKS ) {
+ 
+    for ( $st->cache->get_tasks ) {
         push @unknown_ids, $_ unless ( $task_ids->{$_} );
     }
 
     if ( scalar @unknown_ids > 0 ) {
-
         $st->log( "found unused tasks with id's: " . join( ', ', @unknown_ids ) );
         $st->log( "these tasks will be deleted" );
 
-        delete $TASKS{ $_ } for ( @unknown_ids );
+        $st->cache->del_task_data( $_ ) for ( @unknown_ids );
     }
 
     return 1;
@@ -461,12 +460,13 @@ sub check_previous_run_tasks {
         for my $number_data ( @{ $numbers } ) {
             next unless ( $number_data->{push_id} );
 
-            my $number_id = $number_data->{id};
-            $TASKS{ $task_id }->{numbers}->{ $number_id } = {
-                push_id => $number_data->{push_id},
-                number  => $number_data->{number},
-                uid     => $number_data->{uid},
-            };
+            $st->cache->set_task_data( $task_id, {
+                    number_id   => $number_data->{id},
+                    push_id     => $number_data->{push_id},
+                    number      => $number_data->{number},
+                    uid         => $number_data->{uid},
+                }
+            );
         }
     }
 
