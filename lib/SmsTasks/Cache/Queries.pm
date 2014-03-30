@@ -18,35 +18,41 @@ our $VERSION = $SmsTasks::Cache::BaseQueries::VERSION;
 sub set_task_data {
     my ( $self, $task_id, $data ) = @_;
 
-    return unless ( $task_id && $data->{number_id} );
+    return unless ( $task_id && $data && $data->{number_id} );
 
-    $self->r->select( TASKS_DBINDEX );
-    $self->hset( $task_id, $data->{number_id}, 1 );
+    my $number_id = delete $data->{number_id};
 
-    $self->r->select( NUMBERS_DBINDEX );
+    $self->select( TASKS_DBINDEX );
+    $self->hset( $task_id, $number_id, 1 );
+
+    return 1 if ( scalar keys %{ $data } == 0 );
+
+    $self->select( NUMBERS_DBINDEX );
     for my $field ( DATA_NUMBER_FIELDS ) {
-        $self->hset( $data->{number_id}, $field, $data->{$field} ) if ( $data->{$field} );
+        $self->hset( $number_id, $field, $data->{$field} ) if ( $data->{$field} );
     }
+
+    return 1;
 }
 
 sub get_task_data {
     my ( $self, $task_id, $number_id ) = @_;
 
-    $self->r->select( TASKS_DBINDEX );
+    $self->select( TASKS_DBINDEX );
     return unless ( $task_id && $self->exists( key => $task_id ) );
 
     if ( $number_id ) { # получить данные только по одному ключу
         return $self->_get_task_data_by_number_id( $number_id )
     }
     else { # получить данные по всем ключам
-        return $self->_get_task_data_all_keys( $task_id );
+        return $self->_get_task_keys( $task_id );
     }
 }
 
 sub _get_task_data_by_number_id {
-    my ( $self, $number_id, $data ) = @_;
+    my ( $self, $number_id ) = @_;
 
-    $self->r->select( NUMBERS_DBINDEX );
+    $self->select( NUMBERS_DBINDEX );
     return unless ( $number_id && $self->exists( key => $number_id ) );
 
     my $number_id_data;
@@ -59,22 +65,19 @@ sub _get_task_data_by_number_id {
     return $number_id_data;
 }
 
-sub _get_task_data_all_keys {
+sub _get_task_keys {
     my ( $self, $task_id ) = @_;
 
     return unless ( $task_id );
 
-    $self->r->select( TASKS_DBINDEX );
-    my $task_id_data;
-    my @task_id_keys = $self->hkeys( $task_id );
+    $self->select( TASKS_DBINDEX );
 
-
-    for my $number_id ( @task_id_keys ) {
-        next if ( $number_id eq 'status' );
-        $task_id_data->{ $number_id } = $self->_get_task_data_by_number_id( $number_id );
+    my @task_keys = $self->hkeys( $task_id );
+    for my $i ( 0..$#task_keys ) {
+        delete $task_keys[ $i ] if ( $task_keys[ $i ] eq 'status' );
     }
 
-    return $task_id_data;
+    return @task_keys;
 }
 
 sub del_task_data {
@@ -83,31 +86,31 @@ sub del_task_data {
     return unless ( $task_id );
 
     if ( $number_id ) {
-        $self->r->select( TASKS_DBINDEX );
+        $self->select( TASKS_DBINDEX );
         $self->hdel( $task_id, $number_id );
 
-        $self->r->select( NUMBERS_DBINDEX );
+        $self->select( NUMBERS_DBINDEX );
         $self->del( key => $number_id );
     }
     else {
-        $self->r->select( TASKS_DBINDEX );
+        $self->select( TASKS_DBINDEX );
         $self->del( key => $task_id );
     }
 
     return 1;
 }
 
-sub tasks_count {
+sub get_tasks_count {
     my ( $self ) = @_;
 
-    $self->r->select( TASKS_DBINDEX );
+    $self->select( TASKS_DBINDEX );
     return $self->dbsize;
 }
 
 sub get_tasks {
     my ( $self ) = @_;
 
-    $self->r->select( TASKS_DBINDEX );
+    $self->select( TASKS_DBINDEX );
     return $self->keys;
 }
 
@@ -116,10 +119,9 @@ sub get_task_data_count {
 
     return 0 unless ( $task_id );
 
-    my $task_data = $self->get_task_data( $task_id );
+    my @task_data = $self->_get_task_keys( $task_id );
 
-    return 0 unless ( $task_data );
-    return scalar keys %{ $task_data };
+    return scalar keys @task_data;
 }
 
 sub set_task_status {
@@ -129,7 +131,7 @@ sub set_task_status {
 
     return unless ( $task_id );
 
-    $self->r->select( TASKS_DBINDEX );
+    $self->select( TASKS_DBINDEX );
     return $self->hset( $task_id, 'status', $status );
 }
 
@@ -138,17 +140,17 @@ sub task_exists {
 
     return unless ( $task_id );
 
-    $self->r->select( TASKS_DBINDEX );
+    $self->select( TASKS_DBINDEX );
     return $self->exists( key => $task_id );
 }
 
 sub clear {
     my ( $self ) = @_;
 
-    $self->r->select( TASKS_DBINDEX );
+    $self->select( TASKS_DBINDEX );
     $self->flushdb;
 
-    $self->r->select( NUMBERS_DBINDEX );
+    $self->select( NUMBERS_DBINDEX );
     $self->flushdb;
 
     return 1;

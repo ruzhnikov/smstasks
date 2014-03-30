@@ -53,13 +53,7 @@ for my $i ( 1 .. ITER ) {
     ok( $redis->hset( $hash, $number_id, 1 ), 'set ' . $number_id . ' for hash ' . $hash );
 
     for my $key ( DATA_NUMBER_FIELDS ) {
-        my $value;
-        if ( $key eq 'number' ) {
-            $value = '89994353' . int(rand(50));
-        }
-        else {
-            $value = get_data();
-        }
+        my $value = get_data( $key );
         ok( $redis->hset( $number_id, $key, $value ), 'set ' . $key . ' for hash ' . $number_id );
         $number_hash{ $number_id }->{ $key } = $value;
     }
@@ -87,7 +81,14 @@ for my $i ( 1 .. ITER ) {
 is( $redis->dbsize, '0', 'db empty' );
 
 sub get_data {
-    return int(rand(10000) * 3 );
+    my ( $key ) = shift;
+
+    if ( $key && $key eq 'number' ) {
+        return '89994353' . int(rand(50));
+    }
+    else {
+        return int(rand(10000) * 3 );
+    }
 }
 
 done_testing();

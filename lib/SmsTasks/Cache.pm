@@ -24,7 +24,7 @@ sub new {
 sub _init {
     my ( $self ) = @_;
 
-    $self->{redis} = Redis::Fast->new;
+    $self->{redis} = Redis::Fast->new( name => "cache_" . time() );
 }
 
 sub r {
