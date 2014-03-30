@@ -35,13 +35,4 @@ sub r {
     return $self->{redis};
 }
 
-sub log {
-    my ( $self, $message ) = @_;
-
-    my $prefix = 'Cache';
-    $message = $prefix . ': ' . $message;
-
-    warn $message;
-}
-
 1;

@@ -373,7 +373,7 @@ sub ua_process {
                     # сообщение доставлено, пишем статистику и удаляем номер из глобального хэша
                     $stat_hash->{status} = 'success';
                     $db_method = 'set_number_suc';
-                    delete $numbers->{ $number_id };
+                    $st->cache->del_task_data( $task_id, $number_id );
 
                     $date = $res->date_delivery_sms;
                 }

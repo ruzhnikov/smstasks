@@ -104,6 +104,13 @@ sub del {
     }
 }
 
+sub hdel {
+    my ( $self, $hash, $key ) = @_;
+
+    return unless ( $hash && $key );
+    return $self->del( hash => $hash, key => $key );
+}
+
 sub hkeys {
     my ( $self, $hash ) = @_;
 
@@ -124,6 +131,13 @@ sub dbsize {
     my ( $self ) = @_;
 
     return $self->r->dbsize;
+}
+
+sub select {
+    my ( $self, $dbindex ) = @_;
+
+    return unless ( $dbindex );
+    return $self->r->select( $dbindex );
 }
 
 1;

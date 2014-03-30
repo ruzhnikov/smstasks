@@ -5,10 +5,11 @@ use warnings;
 use 5.008009;
 
 use constant {
-    DATA_NUMBER_FIELDS  => qw/ push_id number uid /,
     TASKS_DBINDEX       => 2,
     NUMBERS_DBINDEX     => 3,
 };
+
+use constant DATA_NUMBER_FIELDS  => qw/ push_id number uid /;
 
 use base qw/ SmsTasks::Cache::BaseQueries /;
 
@@ -24,7 +25,7 @@ sub set_task_data {
 
     $self->r->select( NUMBERS_DBINDEX );
     for my $field ( DATA_NUMBER_FIELDS ) {
-        $self->hset( $data->{number_id}, $field, $data->{$_} ) if ( $data->{$field} );
+        $self->hset( $data->{number_id}, $field, $data->{$field} ) if ( $data->{$field} );
     }
 }
 
@@ -83,10 +84,7 @@ sub del_task_data {
 
     if ( $number_id ) {
         $self->r->select( TASKS_DBINDEX );
-        $self->del(
-            hash => $task_id,
-            key  => $number_id,
-        );
+        $self->hdel( $task_id, $number_id );
 
         $self->r->select( NUMBERS_DBINDEX );
         $self->del( key => $number_id );
