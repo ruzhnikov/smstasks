@@ -35,7 +35,7 @@ use constant {
 # обязательные параметры из yml-файла
 use constant REQUIRED_SETTINGS => qw/ general database useragent /;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 =head1 METHODS
 

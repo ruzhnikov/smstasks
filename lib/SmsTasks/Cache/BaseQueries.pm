@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use 5.008009;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 sub set {
     my ( $self, %param ) = @_;

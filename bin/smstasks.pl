@@ -36,7 +36,7 @@ use constant {
     GENERAL_WAIT_TIME   => 120, # время "сна" главного управляющего процесса
 };
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 # проверяем, не запущен ли скрипт ранее
 do_exit() if ( me_running() );
@@ -134,7 +134,7 @@ sub work_process {
 
         do_wait() unless ( $st->check_run_time );
 
-        if ( $st->cache->tasks_count == 0 ) {
+        if ( $st->cache->get_tasks_count == 0 ) {
             sleep( $wait_time );
             next;
         }
@@ -314,7 +314,7 @@ sub ua_process {
 
     while ( 1 ) {
 
-        if ( $st->cache->tasks_count == 0 ) {
+        if ( $st->cache->get_tasks_count == 0 ) {
             sleep( $wait_time );
             next;
         }
@@ -322,23 +322,24 @@ sub ua_process {
         for my $task_id ( $st->cache->get_tasks ) {
 
             next if ( $st->cache->get_task_data_count( $task_id ) == 0 );
-            my $numbers = $st->cache->get_task_data( $task_id );
+            my @number_ids = $st->cache->get_task_data( $task_id );
 
             $st->ua->log("processing of previously sent messages for task $task_id");
 
-            for my $number_id ( keys %{ $numbers } ) {
-                next unless $numbers->{$number_id}->{push_id};
+            for my $number_id ( @number_ids ) {
+                my $number_data = $st->cache->get_task_data( $task_id, $number_id );
+                next unless ( $number_data->{push_id} );
 
                 if ( $VERBOSE ) {
-                    $st->ua->log("obtained number data: " . Dumper( $numbers->{$number_id} ) );
+                    $st->ua->log("obtained number data: " . Dumper( $number_data ) );
                 }
 
                 my $res;
 
                 eval {
                     $res = $st->ua->get_status(
-                        push_id => $numbers->{$number_id}->{push_id},
-                        number  => $numbers->{$number_id}->{number},
+                        push_id => $number_data->{push_id},
+                        number  => $number_data->{number},
                     );
                 };
 
@@ -356,8 +357,8 @@ sub ua_process {
 
                 my $stat_hash = {
                     task_id => $task_id,
-                    number  => $numbers->{$number_id}->{number},
-                    uid     => $numbers->{$number_id}->{uid},
+                    number  => $number_data->{number},
+                    uid     => $number_data->{uid},
                 };
 
                 my ( $db_method, $delivery_date, $delivery_time, $date );

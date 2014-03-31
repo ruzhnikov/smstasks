@@ -1,5 +1,10 @@
 Revision history for smstasks
 
+0.11    2014-03-31
+
+    - fixed errors when working with Radis
+    - added tests
+
 0.10    2014-03-28
 
     - significant release
