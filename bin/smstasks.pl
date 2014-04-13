@@ -6,9 +6,9 @@
 #
 #         USAGE: ./smstasks.pl
 #
-#   DESCRIPTION: Скрипт отправки СМС
+#   DESCRIPTION: Application to send SMS
 #
-#  REQUIREMENTS: Carp, Date::Parse, POSIX, constant, Data::Dumper, SmsTasks::*
+#  REQUIREMENTS: Carp, Date::Parse, POSIX, constant, Data::Dumper, Getopt::Long, SmsTasks::*
 #
 #       AUTHORS: Alexander Ruzhnikov <ruzhnikov85@gmail.com>
 #
@@ -25,6 +25,7 @@ use lib "$Bin/../lib";
 
 use POSIX   qw/ setsid :sys_wait_h /;
 use Data::Dumper;
+use Getopt::Long;
 
 use SmsTasks;
 use SmsTasks::Utils;
@@ -36,7 +37,16 @@ use constant {
     GENERAL_WAIT_TIME   => 120, # время "сна" главного управляющего процесса
 };
 
-our $VERSION = '0.11';
+
+my $VERSION = '0.12';
+
+my $version_flag;
+
+GetOptions(
+        'version|V' => \$version_flag,
+);
+
+print_version() if $version_flag;
 
 # проверяем, не запущен ли скрипт ранее
 do_exit() if ( me_running() );
@@ -493,6 +503,11 @@ sub me_running {
 sub do_exit {
     warn "Program alredy running!";
     exit 1;
+}
+
+sub print_version {
+    print $VERSION . "\n";
+    exit 0;
 }
 
 __END__
