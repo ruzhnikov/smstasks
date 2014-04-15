@@ -1,5 +1,6 @@
 package SmsTasks::DB;
 
+use 5.008009;
 use strict;
 use warnings;
 use DBI;

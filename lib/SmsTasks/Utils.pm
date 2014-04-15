@@ -1,5 +1,9 @@
 package SmsTasks::Utils;
 
+use 5.008009;
+use strict;
+use warnings;
+
 use POSIX   qw/ strftime /;
 use Date::Parse qw/ str2time /;
 

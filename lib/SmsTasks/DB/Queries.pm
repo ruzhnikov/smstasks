@@ -6,15 +6,18 @@ SmsTasks::DB::Queries
 
 =cut
 
+use 5.008009;
 use strict;
 use warnings;
-use 5.008009;
 
 use SmsTasks::Utils;
 
-use constant DEFAULT_LIMIT  => 10;  # лимит выборки данных из БД
+use constant {
+    DEFAULT_LIMIT   => 10,  # default db-queries limit
+    DEFAULT_OFFSET  => 0,   # default db-queries offset
+};
 
-our $VERSION = '0.10';
+our $VERSION = '0.12';
 
 =head1 METHODS
 
@@ -283,7 +286,7 @@ sub get_numbers_query {
     my $wherecond;
 
     my $limit  = $param->{limit} ? $param->{limit} : DEFAULT_LIMIT;
-    my $offset = $param->{offset} ? $param->{offset} : 0;
+    my $offset = $param->{offset} ? $param->{offset} : DEFAULT_OFFSET;
 
     if ( $param->{status} ) {
         for my $status ( @{ $param->{status} } ) {
@@ -332,7 +335,8 @@ sub get_run_numbers {
 
     return unless ( $task_id );
 
-    $limit ||=DEFAULT_LIMIT;
+    $limit  ||= DEFAULT_LIMIT;
+    $offset ||= DEFAULT_OFFSET;
     return $self->get_numbers_query( $task_id,
         {
             status  => [ qw/ running / ],

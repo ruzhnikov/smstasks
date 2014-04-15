@@ -16,9 +16,9 @@
 #
 #===============================================================================
 
+use 5.008009;
 use strict;
 use warnings;
-use 5.008009;
 
 use FindBin qw/ $Bin /;
 use lib "$Bin/../lib";
@@ -455,29 +455,33 @@ sub _check_unknown_ids {
     return 1;
 }
 
-# чекаем таски, что были запущены ранее
-# и выбираем из них номера со статусом running
+# check tasks that were launched earlier
+# select numbers have a status of "running"
 sub check_previous_run_tasks {
     my $tasks = $st->db->get_run_tasks;
 
     return 1 if ( scalar @{ $tasks } == 0 );
 
-    # TODO: переработать механизм обработки номеров,
-    # в текщем виде он может захватывать не все номера( сейчас берёт 100 номеров )
     for my $task_id ( @{ $tasks } ) {
-        my $numbers = $st->db->get_run_numbers( $task_id, 1000 );
-        next if ( scalar @{ $numbers } == 0 );
+        my $offset = 0;
+        my $limit  = 100;
 
-        for my $number_data ( @{ $numbers } ) {
-            next unless ( $number_data->{push_id} );
+        while ( 1 ) {
+            my $numbers = $st->db->get_run_numbers( $task_id, $limit, $offset );
+            last if ( scalar @{ $numbers } == 0 );
+            $offset += $limit;
 
-            $st->cache->set_task_data( $task_id, {
-                    number_id   => $number_data->{id},
-                    push_id     => $number_data->{push_id},
-                    number      => $number_data->{number},
-                    uid         => $number_data->{uid},
-                }
-            );
+            for my $number_data ( @{ $numbers } ) {
+                next unless ( $number_data->{push_id} );
+
+                $st->cache->set_task_data( $task_id, {
+                        number_id   => $number_data->{id},
+                        push_id     => $number_data->{push_id},
+                        number      => $number_data->{number},
+                        uid         => $number_data->{uid},
+                    }
+                );
+            }
         }
     }
 
