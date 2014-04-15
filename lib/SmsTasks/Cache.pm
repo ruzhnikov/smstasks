@@ -1,8 +1,8 @@
 package SmsTasks::Cache;
 
+use 5.008009;
 use strict;
 use warnings;
-use 5.008009;
 
 use Redis::Fast;
 

@@ -8,9 +8,9 @@ SmsTasks
 
 =cut
 
+use 5.008009;
 use strict;
 use warnings;
-use 5.008009;
 
 use Carp;
 use Config::Tiny;
@@ -35,7 +35,7 @@ use constant {
 # обязательные параметры из yml-файла
 use constant REQUIRED_SETTINGS => qw/ general database useragent /;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 =head1 METHODS
 

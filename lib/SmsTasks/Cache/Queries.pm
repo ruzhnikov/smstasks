@@ -1,8 +1,8 @@
 package SmsTasks::Cache::Queries;
 
+use 5.008009;
 use strict;
 use warnings;
-use 5.008009;
 
 use constant {
     TASKS_DBINDEX       => 2,

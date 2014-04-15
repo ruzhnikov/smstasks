@@ -1,12 +1,12 @@
 package SmsTasks::UserAgent::Requests;
 
+use 5.008009;
 use strict;
 use warnings;
-use 5.008009;
 
 use constant DEFAULT_TTL => '10';  # время "жизни" СМС
 
-our $VERSION = '0.02';
+our $VERSION = '0.12';
 
 sub send_sms {
     my ( $self, %data ) = @_;

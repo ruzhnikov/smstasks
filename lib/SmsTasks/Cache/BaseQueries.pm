@@ -1,10 +1,10 @@
 package SmsTasks::Cache::BaseQueries;
 
+use 5.008009;
 use strict;
 use warnings;
-use 5.008009;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 sub set {
     my ( $self, %param ) = @_;

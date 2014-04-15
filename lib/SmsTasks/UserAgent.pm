@@ -1,8 +1,8 @@
 package SmsTasks::UserAgent;
 
+use 5.008009;
 use strict;
 use warnings;
-use 5.008009;
 
 use LWP::UserAgent;
 use Carp    qw/ confess /;

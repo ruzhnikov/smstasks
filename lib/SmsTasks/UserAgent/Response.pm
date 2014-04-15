@@ -1,8 +1,8 @@
 package SmsTasks::UserAgent::Response;
 
+use 5.008009;
 use strict;
 use warnings;
-use 5.008009;
 
 use XML::Fast;
 
