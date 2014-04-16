@@ -1,9 +1,11 @@
-* Сделать отправку длинных сообщений( разбиение длинного сообщения )
+* Make sending long messages( partition of a long message )
 * write installer
-* write tests
-* Сделать в основной программе обработку сигналов из операционной системы
+* more tests
+* Make processing signals received from the operating system
 * Переделать функцию check_previous_run_tasks, чтобы выбирались все номера в не зависимости от их числа
-* Облагородить init-скрипт
-* Написать документацию к методам
-* Подумать над многопоточной отправкой сообщений( отправка ч/з асинхронный модуль )
-* rewrite documetation and comments on english
+* improve init-script:
+** launch smstasks after redis-server
+** rewrite init-script wits start-stop-daemon
+* write documentation for methods
+* Sending messages to multiple threads( sent via an asynchronous module )
+* rewrite documentation and comments on english
