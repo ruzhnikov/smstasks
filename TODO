@@ -2,7 +2,6 @@
 * write installer
 * more tests
 * Make processing signals received from the operating system
-* Переделать функцию check_previous_run_tasks, чтобы выбирались все номера в не зависимости от их числа
 * improve init-script:
 ** launch smstasks after redis-server
 ** rewrite init-script wits start-stop-daemon
