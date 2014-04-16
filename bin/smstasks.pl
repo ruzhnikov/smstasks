@@ -462,7 +462,8 @@ sub check_previous_run_tasks {
 
     return 1 if ( scalar @{ $tasks } == 0 );
 
-    for my $task_id ( @{ $tasks } ) {
+    for ( @{ $tasks } ) {
+        my $task_id = $_->{id};
         my $offset = 0;
         my $limit  = 100;
 

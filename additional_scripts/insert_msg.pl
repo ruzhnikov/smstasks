@@ -11,7 +11,8 @@
 use strict;
 use warnings;
 
-use lib '/opt/smstasks/lib';
+use FindBin qw/ $Bin /;
+use lib "$Bin/../lib";
 use Getopt::Long;
 
 use SmsTasks;
