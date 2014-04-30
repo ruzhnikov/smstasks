@@ -19,6 +19,7 @@ SETCOLOR_FAILURE="echo -en \\033[1;31m"
 SETCOLOR_NORMAL="echo -en \\033[0;39m"
 
 SMSTASKS_VERSION=$($PERL bin/$PROGRAM_NAME.pl --version)
+MD5SUM=$(which md5sum)
 
 
 set -e
@@ -55,7 +56,21 @@ function echo_ok {
 }
 
 function upgrade {
-    # TODO: end the function
+    /etc/init.d/$PROGRAM_NAME stop
+
+    # check the init-script
+    md5_cur=$($MD5SUM /etc/init.d/$PROGRAM_NAME | awk '{print $1}' )
+    md5_new=$($MD5SUM $PATH_DIR/init/$PROGRAM_NAME | awk '{print $1}' )
+    if [ "$md5_cur" != "$md5_new" ]; then
+        cp $PATH_DIR/init/$PROGRAM_NAME /etc/init.d/$PROGRAM_NAME
+    fi
+
+    rm -fr $PURPOSE_DIR/$PROGRAM_NAME/lib
+    cp -r $PATH_DIR/lib $PURPOSE_DIR/$PROGRAM_NAME/
+
+    rm $PURPOSE_DIR/$PROGRAM_NAME/bin/$PROGRAM_NAME.pl
+    cp $PATH_DIR/bin/$PROGRAM_NAME.pl $PURPOSE_DIR/$PROGRAM_NAME/bin/
+    
     echo "Success!"
     return 0
 }
