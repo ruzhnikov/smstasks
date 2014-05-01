@@ -21,7 +21,7 @@ use SmsTasks::Log;
 use SmsTasks::Utils;
 use SmsTasks::Cache;
 
-# задаём константы
+# setup constants
 use constant {
     GLOBAL_CONF => 'smstasks.conf',
     CONF_PATH   => '/etc/smstasks',
@@ -32,7 +32,7 @@ use constant {
     DEFAULT_TIME_END        => '20:00',
 };
 
-# обязательные параметры из yml-файла
+# mandatory parameters from config-file
 use constant REQUIRED_SETTINGS => qw/ general database useragent /;
 
 our $VERSION = '0.12';
@@ -43,7 +43,7 @@ our $VERSION = '0.12';
 
 =item B<new>
 
-Конструктор
+Constructor
 
 =cut
 
@@ -57,12 +57,6 @@ sub new {
 
     return $self;
 }
-
-=item B<_init>( $self )
-
-Инициализация модулей
-
-=cut
 
 sub _init {
     my ( $self ) = @_;
@@ -105,7 +99,7 @@ sub config {
 
 =item B<get_config>
 
-Читаем конфиг-файл
+Read config file
 
 =cut
 
@@ -121,6 +115,12 @@ sub get_config {
     return $settings;
 }
 
+=item B<db( $self )>
+
+get object for working with database
+
+=cut
+
 sub db {
     my ( $self ) = @_;
 
@@ -130,6 +130,12 @@ sub db {
     return $self->{db};
 }
 
+=item B<ua( $self )>
+
+get object for working with useragent
+
+=cut
+
 sub ua {
     my ( $self ) = @_;
 
@@ -137,6 +143,12 @@ sub ua {
 
     return $self->{ua};
 }
+
+=item B<cache( $self )>
+
+get object for working with cache
+
+=cut
 
 sub cache {
     my ( $self ) = @_;
@@ -158,6 +170,12 @@ sub _get_logger {
     return $self->{logger};
 }
 
+=item B<log( $self )>
+
+get object for working with logger
+
+=cut
+
 sub log {
     my ( $self, $message ) = @_;
 
@@ -168,6 +186,12 @@ sub log {
 
     return 1;
 }
+
+=item B<check_run_time( $self )>
+
+check the startup time
+
+=cut
 
 sub check_run_time {
     my ( $self ) = @_;
@@ -187,7 +211,7 @@ sub check_run_time {
 
 =head1 DESCRIPTION
 
-Головной модуль. Подключает все остальные модули
+Head module. Connects all other modules
 
 =head1 AUTHOR
 
