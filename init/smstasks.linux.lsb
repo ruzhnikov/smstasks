@@ -1,0 +1,95 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          smstasks
+# Required-Start:    $all
+# Required-Stop:     $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start smstasks daemon at boot time
+### END INIT INFO
+
+DAEMON_PATH="/opt/smstasks/bin/smstasks.pl"
+DAEMON_NAME="smstasks"
+DESC="smstasks"
+NAME="smstasks"
+
+. /lib/lsb/init-functions
+
+function daemon_start {
+    $(/usr/bin/perl $DAEMON_PATH) &
+}
+
+function daemon_stop {
+    while [ 1 ]; do
+        PIDs=`ps -ef | grep $DAEMON_NAME.pl | grep -v grep | awk '{ print $2}'`
+
+        if [ "$PIDs" != "" ]; then
+
+            pid1=$(echo $PIDs | awk '{ print $1 }')
+            pid2=$(echo $PIDs | awk '{ print $2 }')
+            pid3=$(echo $PIDs | awk '{ print $3 }')
+            pid4=$(echo $PIDs | awk '{ print $4 }')
+
+            for pid in $pid1 $pid2 $pid3 $pid4
+            do
+                if [ "$pid" != "" ]; then
+                    kill -9 $pid
+                fi
+            done
+        else
+            return 0
+        fi
+    done
+}
+
+case "$1" in
+        start)
+            log_daemon_msg "Starting $DESC" "$NAME"
+            daemon_start
+            case "$?" in
+                0) log_end_msg 0 ;;
+                *) log_end_msg 1 ;;
+            esac
+            ;;
+
+        stop)
+            log_daemon_msg "Stopping $DESC" "$NAME"
+            daemon_stop
+            case "$?" in
+                0) log_end_msg 0 ;;
+                *) log_end_msg 1 ;;
+            esac
+            ;;
+
+        restart)
+            log_daemon_msg "Restarting $DESC" "$NAME"
+            daemon_stop
+            case "$?" in
+                0)
+                    daemon_start
+                    case "$?" in
+                        0) log_end_msg 0 ;;
+                        *) log_end_msg 1 ;;
+                    esac
+                    ;;
+                *)
+                    log_end_msg 1
+                    ;;
+            esac
+            ;;
+
+        status)
+            RES=$((ps -ef | grep $DAEMON_NAME.pl | grep -v grep) 2>&1)
+            if [ "$RES" != "" ]; then
+                echo "program $DAEMON_NAME running"
+            else
+                echo "program $DAEMON_NAME is not running"
+            fi
+        ;;
+
+        *)
+        echo "$DAEMON_NAME program unknown command. Usage: {start|stop|restart|status}"
+esac
+
+exit 0

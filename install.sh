@@ -27,9 +27,6 @@ set -u
 
 
 function chk_os {
-    platform="unknown"
-    unamestr=$(uname)
-    # TODO: end the function
     if ! [ -e /etc/debian_version ]; then
         echo "Your operation system are not Debian based. You must manually set the following programs:"
         echo "Redis-server (>=2.6.12)"
@@ -55,14 +52,85 @@ function echo_ok {
     echo
 }
 
+function chk_mysql {
+    my_host=$1
+    my_dbname=$2
+    my_user=$3
+    my_pass=$4
+    set +e
+
+    for i in 1 2 3
+    do
+        echo -ne "\nChecking MySQL connection..."
+        mysql --user="${my_user}" --password="${my_pass}" --host="${my_host}" --database="${my_dbname}" -e "exit" 2>/dev/null
+        dbstatus=$(echo $?)
+        if [ $dbstatus -ne 0 ]; then
+            echo_fail
+            echo -ne "\nCan't connect"
+            if [ $i -lt 3 ]; then
+                echo ", please retry"
+            else
+                echo ", exit"
+                return 1
+            fi
+        else
+            echo_ok
+            return 0
+        fi
+    done
+}
+
+function load_sql {
+    my_host=$1
+    my_dbname=$2
+    my_user=$3
+    my_pass=$4
+
+    mysql_auth="--user=$my_user --password=$my_pass --host=$my_host --database=$my_dbname"
+
+    echo "Load tables: "
+
+    set +e
+
+    for file in $PATH_DIR/sql/*sql
+    do
+        echo -n $file
+        mysql $mysql_auth -e "source $file;" 2>/dev/null
+        loadstatus=$(echo $?)
+        if [ $loadstatus -ne 0 ]; then
+            echo_fail
+            echo -ne "\nCan't load table $file, exit"
+            return 1
+        else
+            echo_ok
+        fi
+    done
+
+    return 0
+}
+
 function upgrade {
     /etc/init.d/$PROGRAM_NAME stop
 
+    os=$(uname)
+    init_script=""
+    if [ "$os" == "Linux" ]; then
+        if [ -e /etc/lsb-release ]; then
+            init_script="linux.lsb"
+        else
+            init_script="linux"
+        fi
+    else
+        init_script="other"
+    fi
+
+    INIT_SCRIPT="$PATH_DIR/init/$PROGRAM_NAME.$init_script"
+
     # check the init-script
     md5_cur=$($MD5SUM /etc/init.d/$PROGRAM_NAME | awk '{print $1}' )
-    md5_new=$($MD5SUM $PATH_DIR/init/$PROGRAM_NAME | awk '{print $1}' )
+    md5_new=$($MD5SUM $INIT_SCRIPT | awk '{print $1}' )
     if [ "$md5_cur" != "$md5_new" ]; then
-        cp $PATH_DIR/init/$PROGRAM_NAME /etc/init.d/$PROGRAM_NAME
+        cp $INIT_SCRIPT /etc/init.d/$PROGRAM_NAME
     fi
 
     rm -fr $PURPOSE_DIR/$PROGRAM_NAME/lib
@@ -76,8 +144,64 @@ function upgrade {
 }
 
 function install {
-    # TODO: end the function
-    echo "Success!"
+    os=$(uname)
+    init_script=""
+    if [ "$os" == "Linux" ]; then
+        if [ -e /etc/lsb-release ]; then
+            init_script="linux.lsb"
+        else
+            init_script="linux"
+        fi
+    else
+        init_script="other"
+    fi
+
+    INIT_SCRIPT=$PATH_DIR/init/$PROGRAM_NAME.$init_script
+
+    echo -n "Enter Mysql host [127.0.0.1]: "
+    read my_host
+    if [ "$my_host" == "" ]; then
+        my_host="127.0.0.1"
+    fi
+
+    echo -n "Enter Mysql username: "
+    read my_user
+
+    echo -n "Enter Mysql password: "
+    read -s my_pass
+
+    echo -ne "\nEnter DB name [smstasks]: "
+    read my_dbname
+    if [ "$my_dbname" == "" ]; then
+        my_dbname="smstasks"
+    fi
+
+    chk_mysql $my_host $my_dbname $my_user $my_pass
+    if [ $? -eq 1 ]; then
+        return 1
+    fi
+
+    load_sql $my_host $my_dbname $my_user $my_pass
+    if [ $? -eq 1 ]; then
+        return 1
+    fi
+
+    if ! [ -e $CONFIG_DIR ]; then
+        mkdir $CONFIG_DIR
+    fi
+    
+    cp -f $PATH_DIR/conf/$CONFIG_NAME $CONFIG_DIR/
+    sed -ir "s/name\s*=.*/name = $my_dbname/" $CONFIG_DIR/$CONFIG_NAME
+    sed -ir "s/host\s*=.*/host = $my_host/" $CONFIG_DIR/$CONFIG_NAME
+    sed -ir "s/user\s*=.*/user = $my_user/" $CONFIG_DIR/$CONFIG_NAME
+    sed -ir "0,/password/s/password\s*=.*/password = $my_pass/" $CONFIG_DIR/$CONFIG_NAME
+
+    mkdir -p $PURPOSE_DIR/$PROGRAM_NAME
+    cp -r $PATH_DIR/lib $PURPOSE_DIR/$PROGRAM_NAME/
+    cp -r $PATH_DIR/bin $PURPOSE_DIR/$PROGRAM_NAME/
+    cp $INIT_SCRIPT /etc/init.d/$PROGRAM_NAME
+
+    echo -e "\nSuccess!"
     return 0
 }
 
@@ -101,6 +225,12 @@ function chek_purpose_dir {
         return 1
     fi
 }
+
+check_user=$( id -u )
+if [[ $check_user -ne 0 ]]; then
+    echo "!!! This program must be run as root or sudo !!!"
+    exit_fail
+fi
 
 echo -e "\nChecking required perl modules..."
 $PERL $PATH_DIR/$ADDITIOANL_PATH/$CHK_DEP_SCRIPT
