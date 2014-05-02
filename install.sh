@@ -21,6 +21,19 @@ SETCOLOR_NORMAL="echo -en \\033[0;39m"
 SMSTASKS_VERSION=$($PERL bin/$PROGRAM_NAME.pl --version)
 MD5SUM=$(which md5sum)
 
+INIT_SCRIPT=""
+if [ "$(uname)" == "Linux" ]; then
+    if [ -e /etc/lsb-release ]; then
+        INIT_SCRIPT="linux.lsb"
+    else
+        INIT_SCRIPT="linux"
+    fi
+else
+    INIT_SCRIPT="other"
+fi
+
+INIT_SCRIPT="$PATH_DIR/init/$PROGRAM_NAME.$INIT_SCRIPT"
+
 
 set -e
 set -u
@@ -57,12 +70,14 @@ function chk_mysql {
     my_dbname=$2
     my_user=$3
     my_pass=$4
+
     set +e
 
+    mysql_auth="--user=$my_user --password=$my_pass --host=$my_host --database=$my_dbname"
     for i in 1 2 3
     do
         echo -ne "\nChecking MySQL connection..."
-        mysql --user="${my_user}" --password="${my_pass}" --host="${my_host}" --database="${my_dbname}" -e "exit" 2>/dev/null
+        mysql $mysql_auth -e "exit" 2>/dev/null
         dbstatus=$(echo $?)
         if [ $dbstatus -ne 0 ]; then
             echo_fail
@@ -112,20 +127,6 @@ function load_sql {
 function upgrade {
     /etc/init.d/$PROGRAM_NAME stop
 
-    os=$(uname)
-    init_script=""
-    if [ "$os" == "Linux" ]; then
-        if [ -e /etc/lsb-release ]; then
-            init_script="linux.lsb"
-        else
-            init_script="linux"
-        fi
-    else
-        init_script="other"
-    fi
-
-    INIT_SCRIPT="$PATH_DIR/init/$PROGRAM_NAME.$init_script"
-
     # check the init-script
     md5_cur=$($MD5SUM /etc/init.d/$PROGRAM_NAME | awk '{print $1}' )
     md5_new=$($MD5SUM $INIT_SCRIPT | awk '{print $1}' )
@@ -144,20 +145,6 @@ function upgrade {
 }
 
 function install {
-    os=$(uname)
-    init_script=""
-    if [ "$os" == "Linux" ]; then
-        if [ -e /etc/lsb-release ]; then
-            init_script="linux.lsb"
-        else
-            init_script="linux"
-        fi
-    else
-        init_script="other"
-    fi
-
-    INIT_SCRIPT=$PATH_DIR/init/$PROGRAM_NAME.$init_script
-
     echo -n "Enter Mysql host [127.0.0.1]: "
     read my_host
     if [ "$my_host" == "" ]; then

@@ -13,7 +13,7 @@ use Date::Parse qw/ str2time /;
 
 =item B<get_now>
 
-Получить текущую дату и время
+Get current date and time
 
 =cut
 
@@ -24,7 +24,7 @@ sub get_now {
 
 =item B<check_run_time>( $time_start, $time_end )
 
-Попадает ли текущее время в указанный интервал
+Adjudged whether the current time in a specified interval
 
 =cut
 
@@ -56,7 +56,7 @@ sub check_run_time {
 
 head1 DESCRIPTION
 
-Вспомогательные функции
+additional functions
 
 =head1 AUTHOR
 
