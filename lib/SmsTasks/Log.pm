@@ -12,6 +12,17 @@ use warnings;
 
 use Log::Log4perl   qw/ :easy /;
 
+
+=head1 METHODS
+
+=over
+
+=item B<new>
+
+Constructor
+
+=cut
+
 sub new {
     my ( $class, %param ) = @_;
 
@@ -36,6 +47,12 @@ sub _init {
     return $self;
 }
 
+=item B<log>
+
+Write in log-file
+
+=cut
+
 sub log {
     my ( $self, $message ) = @_;
 
@@ -48,9 +65,11 @@ sub log {
 
 1;
 
+=back
+
 =head1 DESCRIPTION
 
-Класс для логгирования
+Class for logging
 
 =head1 AUTHOR
 

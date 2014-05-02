@@ -22,14 +22,17 @@ SMSTASKS_VERSION=$($PERL bin/$PROGRAM_NAME.pl --version)
 MD5SUM=$(which md5sum)
 
 INIT_SCRIPT=""
+INIT_DIR=""
 if [ "$(uname)" == "Linux" ]; then
+    INIT_DIR="/etc/init.d"
     if [ -e /etc/lsb-release ]; then
         INIT_SCRIPT="linux.lsb"
     else
         INIT_SCRIPT="linux"
     fi
-else
-    INIT_SCRIPT="other"
+else if [ "$(uname)" == "FreeBSD" ]; then
+    INIT_DIR="/etc/rc.d"
+    INIT_SCRIPT="freebsd"
 fi
 
 INIT_SCRIPT="$PATH_DIR/init/$PROGRAM_NAME.$INIT_SCRIPT"
@@ -38,9 +41,17 @@ INIT_SCRIPT="$PATH_DIR/init/$PROGRAM_NAME.$INIT_SCRIPT"
 set -e
 set -u
 
+function chk_deb_os {
+    if ! [ -e /etc/debian_version ]; then
+        return 0
+    else
+        return 1
+    fi
+}
 
 function chk_os {
-    if ! [ -e /etc/debian_version ]; then
+    if chk_deb_os
+    then
         echo "Your operation system are not Debian based. You must manually set the following programs:"
         echo "Redis-server (>=2.6.12)"
         echo "Mysql-client or MariaDB-client"
@@ -128,10 +139,10 @@ function upgrade {
     /etc/init.d/$PROGRAM_NAME stop
 
     # check the init-script
-    md5_cur=$($MD5SUM /etc/init.d/$PROGRAM_NAME | awk '{print $1}' )
+    md5_cur=$($MD5SUM $INIT_DIR/$PROGRAM_NAME | awk '{print $1}' )
     md5_new=$($MD5SUM $INIT_SCRIPT | awk '{print $1}' )
     if [ "$md5_cur" != "$md5_new" ]; then
-        cp $INIT_SCRIPT /etc/init.d/$PROGRAM_NAME
+        cp $INIT_SCRIPT $INIT_DIR/$PROGRAM_NAME
     fi
 
     rm -fr $PURPOSE_DIR/$PROGRAM_NAME/lib
@@ -186,7 +197,12 @@ function install {
     mkdir -p $PURPOSE_DIR/$PROGRAM_NAME
     cp -r $PATH_DIR/lib $PURPOSE_DIR/$PROGRAM_NAME/
     cp -r $PATH_DIR/bin $PURPOSE_DIR/$PROGRAM_NAME/
-    cp $INIT_SCRIPT /etc/init.d/$PROGRAM_NAME
+    cp $INIT_SCRIPT $INIT_DIR/$PROGRAM_NAME
+
+    if chk_deb_os
+    then
+        insserv -f -d $PROGRAM_NAME
+    fi
 
     echo -e "\nSuccess!"
     return 0
@@ -216,7 +232,7 @@ function chek_purpose_dir {
 check_user=$( id -u )
 if [[ $check_user -ne 0 ]]; then
     echo "!!! This program must be run as root or sudo !!!"
-    exit_fail
+    exit 1
 fi
 
 echo -e "\nChecking required perl modules..."

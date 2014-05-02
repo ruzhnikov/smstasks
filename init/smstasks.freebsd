@@ -1,20 +1,13 @@
-#!/bin/bash
+#!/bin/sh
 
-### BEGIN INIT INFO
-# Provides:          smstasks
-# Required-Start:    $all
-# Required-Stop:     $all
-# Default-Start:     2 3 4 5
-# Default-Stop:      0 1 6
-# Short-Description: Start smstasks daemon at boot time
-### END INIT INFO
+. /etc/rc.subr
+
+name="smstasks"
 
 DAEMON_PATH="/opt/smstasks/bin/smstasks.pl"
 DAEMON_NAME="smstasks"
 DESC="smstasks"
 NAME="smstasks"
-
-. /lib/lsb/init-functions
 
 function daemon_start {
     $(/usr/bin/perl $DAEMON_PATH) &
