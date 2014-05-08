@@ -30,13 +30,12 @@ if [ "$(uname)" == "Linux" ]; then
     else
         INIT_SCRIPT="linux"
     fi
-else if [ "$(uname)" == "FreeBSD" ]; then
+elif [ "$(uname)" == "FreeBSD" ]; then
     INIT_DIR="/etc/rc.d"
     INIT_SCRIPT="freebsd"
 fi
 
 INIT_SCRIPT="$PATH_DIR/init/$PROGRAM_NAME.$INIT_SCRIPT"
-
 
 set -e
 set -u
@@ -150,7 +149,7 @@ function upgrade {
 
     rm $PURPOSE_DIR/$PROGRAM_NAME/bin/$PROGRAM_NAME.pl
     cp $PATH_DIR/bin/$PROGRAM_NAME.pl $PURPOSE_DIR/$PROGRAM_NAME/bin/
-    
+
     echo "Success!"
     return 0
 }
@@ -187,7 +186,7 @@ function install {
     if ! [ -e $CONFIG_DIR ]; then
         mkdir $CONFIG_DIR
     fi
-    
+
     cp -f $PATH_DIR/conf/$CONFIG_NAME $CONFIG_DIR/
     sed -ir "s/name\s*=.*/name = $my_dbname/" $CONFIG_DIR/$CONFIG_NAME
     sed -ir "s/host\s*=.*/host = $my_host/" $CONFIG_DIR/$CONFIG_NAME
@@ -230,7 +229,7 @@ function chek_purpose_dir {
 }
 
 check_user=$( id -u )
-if [[ $check_user -ne 0 ]]; then
+if [ $check_user -ne 0 ]; then
     echo "!!! This program must be run as root or sudo !!!"
     exit 1
 fi
@@ -252,7 +251,7 @@ then
         missing_packages=`expr $missing_packages + 1`
         echo_fail
     else
-        if [[ "$PKG_REDIS_VERSION" =~ $version_pattern ]]; then
+        if [ "$PKG_REDIS_VERSION" =~ $version_pattern ]; then
             echo_ok
         else
             missing_packages=`expr $missing_packages + 1`
@@ -285,8 +284,8 @@ then
     fi
 fi
 
-# echo -e "\nRunning the tests..."
-# $PROVE $PATH_DIR/t/*
+echo -e "\nRunning the tests..."
+$PROVE $PATH_DIR/t/*
 
 echo -e "\nChecking the previous version..."
 if chek_purpose_dir
