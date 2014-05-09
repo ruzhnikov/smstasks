@@ -2,7 +2,7 @@
 
 # Script to install the smstasks
 
-PATH_DIR="$(pwd)"
+PATH_DIR=$(pwd)
 PURPOSE_DIR="/opt"
 PROGRAM_NAME="smstasks"
 ADDITIOANL_PATH="additional_scripts"
@@ -244,14 +244,14 @@ then
     missing_packages=0
 
     echo -ne " redis-server..."
-    PKG_REDIS=$(dpkg-query -W --showformat='${Status}\n' redis-server|grep "install ok installed")
-    PKG_REDIS_VERSION=$(dpkg-query -W --showformat='${Version}\n' redis-server )
+    PKG_REDIS=$(dpkg --get-selections redis-server| wc -l)
     version_pattern="^[0-9]+\:2\.[68]"
-    if [ "$PKG_REDIS" == "" ]; then
+    if [ $PKG_REDIS -eq 0 ]; then
         missing_packages=`expr $missing_packages + 1`
         echo_fail
     else
-        if [ "$PKG_REDIS_VERSION" =~ $version_pattern ]; then
+        PKG_REDIS_VERSION=$(dpkg-query -W --showformat='${Version}\n' redis-server )
+        if [[ "$PKG_REDIS_VERSION" =~ $version_pattern ]]; then
             echo_ok
         else
             missing_packages=`expr $missing_packages + 1`
@@ -261,13 +261,13 @@ then
     fi
 
     echo -ne " mysql-client..."
-    PKG_MYSQL_CLIENT=$(dpkg-query -W --showformat='${Status}\n' mysql-client-*|grep "install ok installed" | uniq)
-    PKG_MARIADB_CLIENT=$(dpkg-query -W --showformat='${Status}\n' mariadb-client-*|grep "install ok installed" | uniq)
+    PKG_MYSQL_CLIENT=$(dpkg --get-selections mysql-client-*| wc -l)
 
-    if [ "$PKG_MYSQL_CLIENT" == "" ]; then
+    if [ $PKG_MYSQL_CLIENT -eq 0 ]; then
         echo_fail
         echo -ne " mariadb-client..."
-        if [ "$PKG_MARIADB_CLIENT" == "" ]; then
+        PKG_MARIADB_CLIENT=$(dpkg --get-selections mariadb-client-*| wc -l)
+        if [ $PKG_MARIADB_CLIENT -eq 0 ]; then
             missing_packages=`expr $missing_packages + 1`
             echo_fail
         else
@@ -277,7 +277,7 @@ then
         echo_ok
     fi
 
-    if [ "$missing_packages" -gt "0" ]; then
+    if [ $missing_packages -gt 0 ]; then
         echo -e "\nFound not installed packages."
         echo "You need to install the missing packages and re-run the script install.sh"
         exit 1
