@@ -37,6 +37,8 @@ fi
 
 INIT_SCRIPT="$PATH_DIR/init/$PROGRAM_NAME.$INIT_SCRIPT"
 
+DEFAULT_LOGDIR="/var/log/smstasks"
+
 set -e
 set -u
 
@@ -134,6 +136,12 @@ function load_sql {
     return 0
 }
 
+function mk_log {
+    if ! [[ -e "$DEFAULT_LOGDIR" && -d "$DEFAULT_LOGDIR" ]]; then
+        mkdir -p $DEFAULT_LOGDIR
+    fi
+}
+
 function upgrade {
     /etc/init.d/$PROGRAM_NAME stop
 
@@ -149,6 +157,8 @@ function upgrade {
 
     rm $PURPOSE_DIR/$PROGRAM_NAME/bin/$PROGRAM_NAME.pl
     cp $PATH_DIR/bin/$PROGRAM_NAME.pl $PURPOSE_DIR/$PROGRAM_NAME/bin/
+
+    mk_log
 
     echo "Success!"
     return 0
@@ -202,6 +212,8 @@ function install {
     then
         insserv -f -d $PROGRAM_NAME
     fi
+
+    mk_log
 
     echo -e "\nSuccess!"
     return 0

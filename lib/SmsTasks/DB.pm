@@ -5,12 +5,23 @@ use strict;
 use warnings;
 use DBI;
 use Carp;
+use utf8;
 
 use constant DEFAULT_WAIT_TIME   => 7;
 
 use base qw/ SmsTasks::DB::Queries /;
 
 our $VERSION = $SmsTasks::DB::Queries::VERSION;
+
+=head1 METHODS
+
+=over
+
+=item B<new>
+
+Constructor
+
+=cut
 
 sub new {
     my $class = shift;
@@ -21,6 +32,12 @@ sub new {
 
     return bless $self, $class;
 }
+
+=item B<connect>
+
+database connection
+
+=cut
 
 sub connect {
     my ( $self ) = @_;
@@ -38,6 +55,11 @@ sub connect {
     $self->{dbh} = undef;
     eval {
         $self->{dbh} = DBI->connect( $string, $user, $password, $attr );
+        my $data_charset = $self->{data_charset};
+        if ( $data_charset ) {
+            $self->{dbh}->do( "SET NAMES '$data_charset'" );
+            $self->{dbh}->do( "SET CHARACTER SET '$data_charset'" );
+        }
     };
     if ( $@ ) {
         $self->log( $@ );
@@ -107,3 +129,7 @@ sub check_db {
 }
 
 1;
+
+=back
+
+=cut
