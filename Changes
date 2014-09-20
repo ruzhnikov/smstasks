@@ -1,5 +1,18 @@
 Revision history for smstasks
 
+0.12    2014-09-20
+
+    - added conversion of text messages from various encodings to utf8
+    - setting encoding when connecting to the database
+    - started work on writing the installer:
+        * Create a directory for the log
+        * Fixed error checking deb packages
+        * added support freebsd
+        * checking dependings
+        * checking previous version
+    - added option "--version" to run the script
+    - updated TODO list
+
 0.11    2014-03-31
 
     - fixed errors when working with Radis
