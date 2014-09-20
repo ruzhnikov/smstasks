@@ -5,6 +5,8 @@
 * improve init-script:
 ** launch smstasks after redis-server
 ** rewrite init-script wits start-stop-daemon
+** write the init-scripts for a freebsd
 * write documentation for methods
 * Sending messages to multiple threads( sent via an asynchronous module )
 * rewrite documentation and comments on english
+* Divide smstasks.pl into modules

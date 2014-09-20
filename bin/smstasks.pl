@@ -26,6 +26,7 @@ use lib "$Bin/../lib";
 use POSIX   qw/ setsid :sys_wait_h /;
 use Data::Dumper;
 use Getopt::Long;
+use Encode qw/ from_to /;
 
 use SmsTasks;
 use SmsTasks::Utils;
@@ -184,36 +185,42 @@ sub work_process {
                 }
             }
 
-            require utf8;
-            grep { utf8::encode( $_->{message} ) if utf8::is_utf8( $_->{message} ) } @{ $numbers };
-
-            $st->log( "obtained numbers data: " . Dumper( $numbers ) ) if ( $VERBOSE );
+            $st->log( "obtained numbers data: " . Dumper( $numbers ) ) if $VERBOSE;
 
             # начинаем обрабатывать полученные номера
             for my $number_data ( @{ $numbers } ) {
 
                 my $number_id = $number_data->{id};
+                my $message   = $number_data->{message};
 
                 $st->log("send sms to number " . $number_data->{number});
 
+                # сконвертируем сообщение
+                if ( utf8::is_utf8( $message ) ) {
+                    utf8::encode( $message )
+                }
+                else {
+                    my $from_locale = $st->config->{general}->{convert_from_locale};
+                    from_to( $message, $from_locale, "utf8" ) if $from_locale;
+                }
+
                 # отправляем СМС
                 my $res;
-
                 eval {
                     $res = $st->ua->send_sms(
                         number  => $number_data->{number},
-                        message => $number_data->{message},
-                    );
-                };
-
-                if ( $@ ) {
-                    $st->log("Can't send message: $@");
+                        message => $message,
+                    ); 1;
+                } or do {
+                    $st->ua->log("Can't send message: $@");
                     next;
-                }
+                };
 
                 my $res_code  = $res->response_field('push')->{'-res'};
                 my $res_descr = $res->response_field('push')->{'-description'};
                 my $push_id   = $res->response_field('push')->{'-push_id'};
+
+                utf8::encode( $res_descr ) if $res_descr;
 
                 $st->log("send status is $res_code");
                 $st->log("description is $res_descr") if ( $res_descr && $VERBOSE );
@@ -228,11 +235,7 @@ sub work_process {
 
                 my $db_method;
 
-                if ( $res_descr ) {
-                    require utf8;
-                    utf8::encode( $res_descr );
-                    $stat_hash->{log} = $res_descr;
-                }
+                $stat_hash->{log} = $res_descr if $res_descr;
 
                 if ( $res_code == 0 || $res_code == 4 ) { # доставлено
                     $stat_hash->{status} = 'success';
@@ -250,7 +253,6 @@ sub work_process {
                             uid         => $number_data->{uid},
                         }
                     );
-
                 }
                 else {  # ошибка
                     $stat_hash->{status} = 'fail';
@@ -362,6 +364,8 @@ sub ua_process {
                 my $res_code = $res->response_field('sms')->{'-status'};
                 my $res_descr = $res->response_field('sms')->{'-description'};
 
+                utf8::encode( $res_descr ) if $res_descr;
+
                 $st->ua->log("send status is $res_code");
                 $st->ua->log("description is $res_descr") if ( $res_descr && $VERBOSE );
 
@@ -373,11 +377,7 @@ sub ua_process {
 
                 my ( $db_method, $delivery_date, $delivery_time, $date );
 
-                if ( $res_descr ) {
-                    require utf8;
-                    utf8::encode( $res_descr );
-                    $stat_hash->{log} = $res_descr;
-                }
+                $stat_hash->{log} = $res_descr if $res_descr;
 
                 if ( $res_code == 0 || $res_code == 4 ) {
 

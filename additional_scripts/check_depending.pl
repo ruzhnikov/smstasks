@@ -19,7 +19,7 @@ use 5.008009;
 # список всех необходимых модулей
 my @required_modules = qw/ base Carp Config::Tiny constant DBI Digest::MD5 
             Log::Log4perl LWP::UserAgent utf8 XML::Fast Data::Dumper Date::Parse Redis::Fast
-            LWP::Protocol::https IO::Socket::SSL Getopt::Long /;
+            LWP::Protocol::https IO::Socket::SSL Getopt::Long Encode /;
 
 for my $module ( @required_modules ) {
     require_ok( $module );
