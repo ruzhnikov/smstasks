@@ -2,20 +2,27 @@
 
 . /etc/rc.subr
 
+
 name="smstasks"
+rcvar=`set_rcvar`
+start_cmd="${name}_start"
+stop_cmd="${name}_stop"
+
+load_rc_config $name
+eval "${rcvar}=\${${rcvar}:-'NO'}"
 
 DAEMON_PATH="/opt/smstasks/bin/smstasks.pl"
 DAEMON_NAME="smstasks"
 DESC="smstasks"
 NAME="smstasks"
 
-function daemon_start {
+smstasks_start() {
     $(/usr/bin/perl $DAEMON_PATH) &
 }
 
-function daemon_stop {
+smstasks_stop() {
     while [ 1 ]; do
-        PIDs=`ps -ef | grep $DAEMON_NAME.pl | grep -v grep | awk '{ print $2}'`
+        PIDs=`ps -ef | grep $name.pl | grep -v grep | awk '{ print $2}'`
 
         if [ "$PIDs" != "" ]; then
 
@@ -39,7 +46,7 @@ function daemon_stop {
 case "$1" in
         start)
             log_daemon_msg "Starting $DESC" "$NAME"
-            daemon_start
+            # daemon_start
             case "$?" in
                 0) log_end_msg 0 ;;
                 *) log_end_msg 1 ;;
@@ -48,7 +55,7 @@ case "$1" in
 
         stop)
             log_daemon_msg "Stopping $DESC" "$NAME"
-            daemon_stop
+            # daemon_stop
             case "$?" in
                 0) log_end_msg 0 ;;
                 *) log_end_msg 1 ;;
@@ -57,10 +64,10 @@ case "$1" in
 
         restart)
             log_daemon_msg "Restarting $DESC" "$NAME"
-            daemon_stop
+            # daemon_stop
             case "$?" in
                 0)
-                    daemon_start
+                    # daemon_start
                     case "$?" in
                         0) log_end_msg 0 ;;
                         *) log_end_msg 1 ;;
@@ -73,7 +80,7 @@ case "$1" in
             ;;
 
         status)
-            RES=$((ps -ef | grep $DAEMON_NAME.pl | grep -v grep) 2>&1)
+            RES=$(ps aux | grep $DAEMON_NAME.pl | grep -v grep 2>&1)
             if [ "$RES" != "" ]; then
                 echo "program $DAEMON_NAME running"
             else
@@ -85,4 +92,5 @@ case "$1" in
         echo "$DAEMON_NAME program unknown command. Usage: {start|stop|restart|status}"
 esac
 
-exit 0
+load_rc_config $name
+run_rc_command "$1"
