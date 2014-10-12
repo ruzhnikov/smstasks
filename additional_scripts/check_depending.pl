@@ -12,7 +12,7 @@ check_depending.pl
 
 use strict;
 use warnings;
-use Test::More  tests => 16;
+use Test::More  tests => 17;
 
 use 5.008009;
 
