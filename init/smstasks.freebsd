@@ -1,20 +1,21 @@
 #!/bin/sh
 
-. /etc/rc.subr
+# PROVIDE: smstasks
+# REQUIRE: NETWORKING SERVERS
+# KEYWORD: shutdown
 
+. /etc/rc.subr
 
 name="smstasks"
 rcvar=`set_rcvar`
 start_cmd="${name}_start"
 stop_cmd="${name}_stop"
 
-load_rc_config $name
-eval "${rcvar}=\${${rcvar}:-'NO'}"
+extra_commands="status"
+status_cmd="${name}_status"
 
 DAEMON_PATH="/opt/smstasks/bin/smstasks.pl"
 DAEMON_NAME="smstasks"
-DESC="smstasks"
-NAME="smstasks"
 
 smstasks_start() {
     $(/usr/bin/perl $DAEMON_PATH) &
@@ -22,7 +23,7 @@ smstasks_start() {
 
 smstasks_stop() {
     while [ 1 ]; do
-        PIDs=`ps -ef | grep $name.pl | grep -v grep | awk '{ print $2}'`
+        PIDs=`ps aux | grep $name.pl | grep -v grep | awk '{ print $2}'`
 
         if [ "$PIDs" != "" ]; then
 
@@ -43,54 +44,14 @@ smstasks_stop() {
     done
 }
 
-case "$1" in
-        start)
-            log_daemon_msg "Starting $DESC" "$NAME"
-            # daemon_start
-            case "$?" in
-                0) log_end_msg 0 ;;
-                *) log_end_msg 1 ;;
-            esac
-            ;;
-
-        stop)
-            log_daemon_msg "Stopping $DESC" "$NAME"
-            # daemon_stop
-            case "$?" in
-                0) log_end_msg 0 ;;
-                *) log_end_msg 1 ;;
-            esac
-            ;;
-
-        restart)
-            log_daemon_msg "Restarting $DESC" "$NAME"
-            # daemon_stop
-            case "$?" in
-                0)
-                    # daemon_start
-                    case "$?" in
-                        0) log_end_msg 0 ;;
-                        *) log_end_msg 1 ;;
-                    esac
-                    ;;
-                *)
-                    log_end_msg 1
-                    ;;
-            esac
-            ;;
-
-        status)
-            RES=$(ps aux | grep $DAEMON_NAME.pl | grep -v grep 2>&1)
-            if [ "$RES" != "" ]; then
-                echo "program $DAEMON_NAME running"
-            else
-                echo "program $DAEMON_NAME is not running"
-            fi
-        ;;
-
-        *)
-        echo "$DAEMON_NAME program unknown command. Usage: {start|stop|restart|status}"
-esac
+smstasks_status() {
+    RES=$(ps aux | grep $DAEMON_NAME.pl | grep -v grep 2>&1)
+    if [ "$RES" != "" ]; then
+        echo "program $DAEMON_NAME running"
+    else
+        echo "program $DAEMON_NAME is not running"
+    fi
+}
 
 load_rc_config $name
 run_rc_command "$1"
